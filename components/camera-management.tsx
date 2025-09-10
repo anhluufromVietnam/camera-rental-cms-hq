@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-
+import { db } from "@/firebase.config"
+import { ref, onValue, push, update, remove, } from "firebase/database"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -71,42 +72,30 @@ export function CameraManagement() {
 
   // Load cameras from localStorage on component mount
   useEffect(() => {
-    const savedCameras = localStorage.getItem("cameras")
-    if (savedCameras) {
-      setCameras(JSON.parse(savedCameras))
-    } else {
-      // Initialize with sample data
-      const sampleCameras: Camera[] = [
-        {
-          id: "1",
-          name: "Canon EOS R5",
-          brand: "Canon",
-          model: "EOS R5",
-          category: "Mirrorless",
-          dailyRate: 150000,
-          quantity: 3,
-          available: 2,
-          description: "Máy ảnh mirrorless full-frame cao cấp",
-          specifications: "45MP, 8K video, dual card slots",
-          status: "active",
-        },
-        {
-          id: "2",
-          name: "Sony A7 IV",
-          brand: "Sony",
-          model: "A7 IV",
-          category: "Mirrorless",
-          dailyRate: 120000,
-          quantity: 2,
-          available: 1,
-          description: "Máy ảnh mirrorless đa năng",
-          specifications: "33MP, 4K video, 5-axis stabilization",
-          status: "active",
-        },
-      ]
-      setCameras(sampleCameras)
-      localStorage.setItem("cameras", JSON.stringify(sampleCameras))
+    const cached = localStorage.getItem("cameras")
+    if (cached) {
+      try {
+        setCameras(JSON.parse(cached))
+      } catch (e) {
+        console.error("Lỗi parse localStorage:", e)
+      }
     }
+
+    const camerasRef = ref(db, "cameras")
+    const unsubscribe = onValue(camerasRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data: Record<string, Omit<Camera, "id">> = snapshot.val()
+        const cameraList: Camera[] = Object.entries(data).map(([id, value]) => ({
+          id,
+          ...value,
+        }))
+        setCameras(cameraList)
+      } else {
+        setCameras([])
+      }
+    })
+
+    return () => unsubscribe()
   }, [])
 
   // Save cameras to localStorage whenever cameras state changes
@@ -114,38 +103,71 @@ export function CameraManagement() {
     localStorage.setItem("cameras", JSON.stringify(cameras))
   }, [cameras])
 
-  const handleAddCamera = (cameraData: Omit<Camera, "id">) => {
-    const newCamera: Camera = {
-      ...cameraData,
-      id: Date.now().toString(),
+  const handleAddCamera = async (cameraData: Omit<Camera, "id">) => {
+    if (cameraData.available > cameraData.quantity) {
+      toast({
+        title: "Lỗi",
+        description: "Số lượng có sẵn không được lớn hơn tổng số lượng",
+        variant: "destructive",
+      })
+      return
     }
-    setCameras((prev) => [...prev, newCamera])
-    setIsAddDialogOpen(false)
-    toast({
-      title: "Thành công",
-      description: "Đã thêm máy ảnh mới",
-    })
+
+    try {
+      await push(ref(db, "cameras"), cameraData)
+      setIsAddDialogOpen(false)
+      toast({ title: "Thành công", description: "Đã thêm máy ảnh mới" })
+    } catch (error) {
+      console.error("Lỗi thêm camera:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể thêm máy ảnh",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleEditCamera = (cameraData: Omit<Camera, "id">) => {
+  const handleEditCamera = async (cameraData: Omit<Camera, "id">) => {
     if (!editingCamera) return
 
-    setCameras((prev) =>
-      prev.map((camera) => (camera.id === editingCamera.id ? { ...cameraData, id: editingCamera.id } : camera)),
-    )
-    setEditingCamera(null)
-    toast({
-      title: "Thành công",
-      description: "Đã cập nhật thông tin máy ảnh",
-    })
+    if (cameraData.available > cameraData.quantity) {
+      toast({
+        title: "Lỗi",
+        description: "Số lượng có sẵn không được lớn hơn tổng số lượng",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      await update(ref(db, `cameras/${editingCamera.id}`), cameraData)
+      setEditingCamera(null)
+      toast({ title: "Thành công", description: "Đã cập nhật máy ảnh" })
+    } catch (error) {
+      console.error("Lỗi cập nhật camera:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể cập nhật máy ảnh",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleDeleteCamera = (id: string) => {
-    setCameras((prev) => prev.filter((camera) => camera.id !== id))
-    toast({
-      title: "Thành công",
-      description: "Đã xóa máy ảnh",
-    })
+  const handleDeleteCamera = async (id: string) => {
+    try {
+      await remove(ref(db, "cameras/" + id))
+      toast({
+        title: "Thành công",
+        description: "Đã xóa máy ảnh",
+      })
+    } catch (error) {
+      console.error("Lỗi xóa camera:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa máy ảnh",
+        variant: "destructive",
+      })
+    }
   }
 
   const filteredCameras = cameras.filter(

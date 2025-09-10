@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { ref, onValue, push, update } from "firebase/database"
+import { db } from "@/firebase.config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,6 +31,13 @@ interface CameraType {
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
+}
+
+interface BookingType {
+  cameraId: string
+  startDate: string
+  endDate: string
+  status: "pending" | "confirmed" | "cancelled"
 }
 
 interface BookingForm {
@@ -75,12 +84,41 @@ export function PublicBooking() {
   const { toast } = useToast()
 
   useEffect(() => {
-    const savedCameras = localStorage.getItem("cameras")
-    if (savedCameras) {
-      const allCameras = JSON.parse(savedCameras)
-      // Only show active cameras with available quantity
-      setCameras(allCameras.filter((camera: CameraType) => camera.status === "active" && camera.available > 0))
-    }
+    const camerasRef = ref(db, "cameras")
+    const bookingsRef = ref(db, "bookings")
+
+    const unsubscribeCameras = onValue(camerasRef, (snapshotCam) => {
+      const camerasData = snapshotCam.exists() ? snapshotCam.val() : {}
+      // Lấy bookings một lần
+      onValue(bookingsRef, (snapshotBook) => {
+        const bookingsData = snapshotBook.exists() ? snapshotBook.val() : {}
+        const now = new Date()
+        const fourteenDaysLater = new Date()
+        fourteenDaysLater.setDate(now.getDate() + 14)
+
+        const cameraList: CameraType[] = Object.entries(camerasData).map(([id, camValue]) => {
+          const cam = camValue as Omit<CameraType, "id">
+
+          // filter bookings liên quan camera này, đang thuê hoặc trong 14 ngày tới
+          const relatedBookings = Object.values(bookingsData).filter((b: any) => {
+            if (b.cameraId !== id) return false
+            if (b.status === "confirmed") return true
+
+            const start = new Date(b.startDate)
+            const end = new Date(b.endDate)
+            return start <= fourteenDaysLater && end >= now
+          })
+
+          const available = Math.max(0, (cam.quantity ?? 1) - relatedBookings.length)
+
+          return { id, ...cam, available }
+        })
+
+        setCameras(cameraList.filter((c) => c.status === "active" && c.available > 0))
+      })
+    })
+
+    return () => unsubscribeCameras()
   }, [])
 
   const calculateTotalDays = () => {
@@ -116,9 +154,7 @@ export function PublicBooking() {
 
     setIsSubmitting(true)
 
-    // Create new booking
     const newBooking = {
-      id: Date.now().toString(),
       customerName: bookingForm.customerName,
       customerEmail: bookingForm.customerEmail,
       customerPhone: bookingForm.customerPhone,
@@ -134,28 +170,16 @@ export function PublicBooking() {
       notes: bookingForm.notes,
     }
 
-    // Save to localStorage
-    const existingBookings = JSON.parse(localStorage.getItem("bookings") || "[]")
-    localStorage.setItem("bookings", JSON.stringify([...existingBookings, newBooking]))
-
-    // Update camera availability
-    const updatedCameras = cameras.map((camera) =>
-      camera.id === selectedCamera.id ? { ...camera, available: camera.available - 1 } : camera,
-    )
-    setCameras(updatedCameras)
-
-    // Update localStorage cameras
-    const allCameras = JSON.parse(localStorage.getItem("cameras") || "[]")
-    const updatedAllCameras = allCameras.map((camera: CameraType) =>
-      camera.id === selectedCamera.id ? { ...camera, available: camera.available - 1 } : camera,
-    )
-    localStorage.setItem("cameras", JSON.stringify(updatedAllCameras))
-
-    setTimeout(() => {
+    try {
+      await push(ref(db, "bookings"), newBooking)
       setIsSubmitting(false)
       setShowSuccess(true)
-    }, 2000)
+    } catch (err) {
+      console.error("Lỗi khi tạo booking:", err)
+      setIsSubmitting(false)
+    }
   }
+
 
   const resetForm = () => {
     setSelectedCamera(null)

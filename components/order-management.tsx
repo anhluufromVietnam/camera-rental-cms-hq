@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { ref, onValue, update, remove, get } from "firebase/database"
+import { db } from "@/firebase.config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,7 +52,7 @@ interface Booking {
   status: "pending" | "confirmed" | "active" | "completed" | "cancelled"
   createdAt: string
   notes?: string
-  adminNotes?: string
+  adminNotes?: string | null
 }
 
 const STATUS_CONFIG = {
@@ -94,136 +96,202 @@ const STATUS_CONFIG = {
     icon: XCircle,
     nextStatus: null,
   },
-}
+} as const
 
 export function OrderManagement() {
   const [bookings, setBookings] = useState<Booking[]>([])
-  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isStatusUpdateOpen, setIsStatusUpdateOpen] = useState(false)
   const [newStatus, setNewStatus] = useState<string>("")
-  const [adminNotes, setAdminNotes] = useState("")
+  const [adminNotes, setAdminNotes] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(true)
+
   const { toast } = useToast()
 
+  // --- realtime load bookings ---
   useEffect(() => {
-    loadBookings()
-  }, [])
+    const bookingsRef = ref(db, "bookings")
+    const unsub = onValue(
+      bookingsRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data: Record<string, Omit<Booking, "id">> = snapshot.val()
+          const list: Booking[] = Object.entries(data).map(([id, v]) => ({ id, ...(v as any) }))
+          setBookings(list)
+        } else {
+          setBookings([])
+        }
+        setLoading(false)
+      },
+      (err) => {
+        console.error("Realtime booking listener error:", err)
+        setLoading(false)
+        toast({
+          title: "Lỗi kết nối",
+          description: "Không thể tải danh sách đơn hàng",
+          variant: "destructive",
+        })
+      },
+    )
 
-  useEffect(() => {
-    filterBookings()
-  }, [bookings, searchTerm, statusFilter])
-
-  const loadBookings = () => {
-    const savedBookings = localStorage.getItem("bookings")
-    if (savedBookings) {
-      const parsedBookings = JSON.parse(savedBookings)
-      setBookings(parsedBookings)
+    return () => {
+      // onValue returns an unsubscribe function
+      try {
+        unsub()
+      } catch (e) {
+        // fallback: nothing
+      }
     }
-  }
+  }, [toast])
 
-  const filterBookings = () => {
-    let filtered = bookings
+  // --- memoized filteredBookings (no duplicated state) ---
+  const filteredBookings = useMemo(() => {
+    let filtered = [...bookings]
 
-    // Filter by search term
     if (searchTerm) {
+      const q = searchTerm.toLowerCase()
       filtered = filtered.filter(
-        (booking) =>
-          booking.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          booking.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          booking.cameraName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          booking.id.includes(searchTerm),
+        (b) =>
+          b.customerName.toLowerCase().includes(q) ||
+          b.customerEmail.toLowerCase().includes(q) ||
+          b.customerPhone.toLowerCase().includes(q) ||
+          b.cameraName.toLowerCase().includes(q) ||
+          b.id.includes(searchTerm),
       )
     }
 
-    // Filter by status
     if (statusFilter !== "all") {
-      filtered = filtered.filter((booking) => booking.status === statusFilter)
+      filtered = filtered.filter((b) => b.status === statusFilter)
     }
 
-    // Sort by creation date (newest first)
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-    setFilteredBookings(filtered)
-  }
+    return filtered
+  }, [bookings, searchTerm, statusFilter])
 
-  const updateBookingStatus = (bookingId: string, status: string, notes?: string) => {
-    const updatedBookings = bookings.map((booking) => {
-      if (booking.id === bookingId) {
-        return {
-          ...booking,
-          status: status as any,
-          adminNotes: notes || booking.adminNotes,
-        }
-      }
-      return booking
-    })
-
-    setBookings(updatedBookings)
-    localStorage.setItem("bookings", JSON.stringify(updatedBookings))
-
-    // Update camera availability if status changes
-    if (status === "cancelled" || status === "completed") {
-      updateCameraAvailability(bookingId, 1) // Return camera to available pool
-    } else if (status === "confirmed") {
-      // Camera was already reserved when booking was created
+  // --- helper: update camera available in RTDB ---
+  const updateCameraAvailability = async (cameraId: string, change: number) => {
+    if (!cameraId) return
+    try {
+      const cameraRef = ref(db, `cameras/${cameraId}`)
+      const snap = await get(cameraRef)
+      if (!snap.exists()) return
+      const cam: any = snap.val()
+      const quantity = Number(cam.quantity || 0)
+      const available = Number(cam.available || 0)
+      const newAvailable = Math.max(0, Math.min(quantity, available + change))
+      await update(cameraRef, { available: newAvailable })
+    } catch (err) {
+      console.error("updateCameraAvailability error:", err)
     }
-
-    toast({
-      title: "Thành công",
-      description: `Đã cập nhật trạng thái đơn hàng thành "${STATUS_CONFIG[status as keyof typeof STATUS_CONFIG].label}"`,
-    })
   }
 
-  const updateCameraAvailability = (bookingId: string, change: number) => {
-    const booking = bookings.find((b) => b.id === bookingId)
-    if (!booking) return
+  // --- update booking status in RTDB (and recalc camera availability) ---
+  const updateBookingStatus = async (
+    bookingId: string,
+    status: Booking["status"],
+    notes?: string | null
+  ) => {
+    try {
+      // tìm đơn gốc trong local state
+      const orig = bookings.find((b) => b.id === bookingId)
 
-    const cameras = JSON.parse(localStorage.getItem("cameras") || "[]")
-    const updatedCameras = cameras.map((camera: any) => {
-      if (camera.id === booking.cameraId) {
-        return {
-          ...camera,
-          available: Math.min(camera.quantity, camera.available + change),
-        }
+      const bookingRef = ref(db, `bookings/${bookingId}`)
+      const payload: any = { status }
+
+      // ghi adminNotes (nếu null thì xóa hoặc để trống)
+      payload.adminNotes = notes ?? (orig?.adminNotes ?? null)
+
+      // cập nhật trạng thái đơn trong DB
+      await update(bookingRef, payload)
+
+      // nếu đơn có cameraId thì tính lại số lượng available
+      if (orig?.cameraId) {
+        await recalcCameraAvailability(orig.cameraId)
       }
-      return camera
-    })
 
-    localStorage.setItem("cameras", JSON.stringify(updatedCameras))
+      toast({
+        title: "Thành công",
+        description: `Đã cập nhật trạng thái đơn #${bookingId} → ${STATUS_CONFIG[status].label}`,
+      })
+    } catch (err) {
+      console.error("updateBookingStatus error:", err)
+      toast({
+        title: "Lỗi",
+        description: "Không thể cập nhật trạng thái đơn hàng",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleStatusUpdate = () => {
-    if (!selectedBooking || !newStatus) return
+  // Recalculate availability for a camera
+  const recalcCameraAvailability = async (cameraId: string) => {
+    const bookingsSnap = await get(ref(db, "bookings"))
+    if (!bookingsSnap.exists()) return
 
-    updateBookingStatus(selectedBooking.id, newStatus, adminNotes)
+    const allBookings = Object.values(bookingsSnap.val()) as Booking[]
+
+    const activeBookings = allBookings.filter(
+      (b) => b.cameraId === cameraId && b.status === "confirmed"
+    ).length
+
+    // lấy thông tin máy (phải có total lưu trong DB)
+    const camSnap = await get(ref(db, `cameras/${cameraId}`))
+    if (!camSnap.exists()) return
+    const cam = camSnap.val()
+
+    const newAvailable = Math.max(0, (cam.total ?? 1) - activeBookings)
+
+    await update(ref(db, `cameras/${cameraId}`), { available: newAvailable })
+  }
+
+  // --- quick helper for clicking next status button ---
+  const handleQuickStatusUpdate = async (booking: Booking, status: string) => {
+    // ensure typing for status
+    await updateBookingStatus(booking.id, status as Booking["status"])
+  }
+
+  // --- delete booking (RTDB) ---
+  const deleteBooking = async (bookingId: string) => {
+    try {
+      // get booking to check camera & status
+      const orig = bookings.find((b) => b.id === bookingId)
+      await remove(ref(db, `bookings/${bookingId}`))
+
+      // if booking was confirmed (reserved), return camera
+      if (orig?.status === "confirmed" && orig.cameraId) {
+        await updateCameraAvailability(orig.cameraId, +1)
+      }
+
+      toast({
+        title: "Đã xóa",
+        description: `Đã xóa đơn hàng #${bookingId}`,
+      })
+    } catch (err) {
+      console.error("deleteBooking error:", err)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa đơn hàng",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // --- handle confirm from status update dialog ---
+  const handleStatusUpdate = async () => {
+    if (!selectedBooking || !newStatus) return
+    await updateBookingStatus(selectedBooking.id, newStatus as Booking["status"], adminNotes || null)
     setIsStatusUpdateOpen(false)
     setSelectedBooking(null)
     setNewStatus("")
     setAdminNotes("")
   }
 
-  const handleQuickStatusUpdate = (booking: Booking, status: string) => {
-    updateBookingStatus(booking.id, status)
-  }
-
-  const deleteBooking = (bookingId: string) => {
-    const updatedBookings = bookings.filter((booking) => booking.id !== bookingId)
-    setBookings(updatedBookings)
-    localStorage.setItem("bookings", JSON.stringify(updatedBookings))
-
-    // Return camera to available pool
-    updateCameraAvailability(bookingId, 1)
-
-    toast({
-      title: "Thành công",
-      description: "Đã xóa đơn hàng",
-    })
-  }
-
-  const getStatusStats = () => {
+  // --- stats calcs ---
+  const stats = useMemo(() => {
     return {
       total: bookings.length,
       pending: bookings.filter((b) => b.status === "pending").length,
@@ -232,14 +300,11 @@ export function OrderManagement() {
       completed: bookings.filter((b) => b.status === "completed").length,
       cancelled: bookings.filter((b) => b.status === "cancelled").length,
     }
-  }
+  }, [bookings])
 
-  const stats = getStatusStats()
-
-  const getStatusBadge = (status: string) => {
-    const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]
+  const getStatusBadge = (status: Booking["status"]) => {
+    const config = STATUS_CONFIG[status]
     const Icon = config.icon
-
     return (
       <Badge variant="secondary" className={cn("flex items-center gap-1", config.textColor)}>
         <Icon className="h-3 w-3" />
@@ -259,6 +324,7 @@ export function OrderManagement() {
     return STATUS_CONFIG[config.nextStatus as keyof typeof STATUS_CONFIG].label
   }
 
+  // --- UI render (kept similar to your original) ---
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -267,7 +333,29 @@ export function OrderManagement() {
           <p className="text-muted-foreground">Xác nhận và quản lý tình trạng đơn hàng</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={loadBookings}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              // manual refresh: re-read once
+              setLoading(true)
+              const bookingsRef = ref(db, "bookings")
+              get(bookingsRef)
+                .then((snap) => {
+                  if (snap.exists()) {
+                    const data = snap.val()
+                    const list: Booking[] = Object.entries(data).map(([id, v]) => ({ id, ...(v as any) }))
+                    setBookings(list)
+                  } else {
+                    setBookings([])
+                  }
+                })
+                .catch((err) => {
+                  console.error("Manual refresh error:", err)
+                  toast({ title: "Lỗi", description: "Không thể làm mới dữ liệu", variant: "destructive" })
+                })
+                .finally(() => setLoading(false))
+            }}
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Làm mới
           </Button>
@@ -441,16 +529,18 @@ export function OrderManagement() {
               </div>
             ))}
 
-            {filteredBookings.length === 0 && (
+            {!loading && filteredBookings.length === 0 && (
               <div className="text-center py-8">
                 <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Không tìm thấy đơn hàng</h3>
                 <p className="text-muted-foreground">
-                  {searchTerm || statusFilter !== "all"
-                    ? "Không có đơn hàng nào phù hợp với bộ lọc hiện tại"
-                    : "Chưa có đơn hàng nào trong hệ thống"}
+                  {searchTerm || statusFilter !== "all" ? "Không có đơn hàng phù hợp" : "Chưa có đơn hàng trong hệ thống"}
                 </p>
               </div>
+            )}
+
+            {loading && (
+              <div className="text-center py-8 text-muted-foreground">Đang tải danh sách đơn hàng...</div>
             )}
           </div>
         </CardContent>

@@ -1,11 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { ref, onValue } from "firebase/database"
+import { db } from "@/firebase.config"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ChevronLeft, ChevronRight, Calendar, Clock, User, Camera, Phone } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, Clock, User, Camera, Phone, List } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Booking {
@@ -48,7 +51,7 @@ const MONTHS = [
 
 const WEEKDAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<Booking["status"], string> = {
   pending: "bg-yellow-500",
   confirmed: "bg-blue-500",
   active: "bg-green-500",
@@ -60,30 +63,47 @@ export function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [bookings, setBookings] = useState<Booking[]>([])
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedDayBookings, setSelectedDayBookings] = useState<Booking[] | null>(null)
 
+  // Load bookings từ Firebase realtime
   useEffect(() => {
-    const savedBookings = localStorage.getItem("bookings")
-    if (savedBookings) {
-      setBookings(JSON.parse(savedBookings))
-    }
+    const bookingsRef = ref(db, "bookings")
+    const unsubscribe = onValue(bookingsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data: Record<string, Omit<Booking, "id">> = snapshot.val()
+        const bookingList: Booking[] = Object.entries(data).map(([id, value]) => ({
+          id,
+          ...value,
+        }))
+        setBookings(bookingList)
+      } else {
+        setBookings([])
+      }
+    })
+
+    return () => unsubscribe()
   }, [])
 
+  // Lưu cache localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("bookings", JSON.stringify(bookings))
+    } catch (err) {
+      console.error("Lỗi lưu localStorage:", err)
+    }
+  }, [bookings])
+
   // Generate calendar days for the current month
-  const generateCalendarDays = (): CalendarDay[] => {
+  const calendarDays = useMemo((): CalendarDay[] => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
 
-    // First day of the month
     const firstDay = new Date(year, month, 1)
-    // Last day of the month
     const lastDay = new Date(year, month + 1, 0)
 
-    // Start from the first Sunday of the week containing the first day
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - startDate.getDay())
 
-    // End at the last Saturday of the week containing the last day
     const endDate = new Date(lastDay)
     endDate.setDate(endDate.getDate() + (6 - endDate.getDay()))
 
@@ -95,8 +115,6 @@ export function CalendarView() {
         const bookingStart = new Date(booking.startDate)
         const bookingEnd = new Date(booking.endDate)
         const currentDay = new Date(currentDateIter)
-
-        // Check if current day falls within booking period
         return currentDay >= bookingStart && currentDay <= bookingEnd
       })
 
@@ -110,9 +128,7 @@ export function CalendarView() {
     }
 
     return days
-  }
-
-  const calendarDays = generateCalendarDays()
+  }, [bookings, currentDate])
 
   const navigateMonth = (direction: "prev" | "next") => {
     setCurrentDate((prev) => {
@@ -130,14 +146,7 @@ export function CalendarView() {
     setCurrentDate(new Date())
   }
 
-  const handleDayClick = (day: CalendarDay) => {
-    setSelectedDate(day.date)
-    if (day.bookings.length === 1) {
-      setSelectedBooking(day.bookings[0])
-    }
-  }
-
-  const getBookingStatusText = (status: string) => {
+  const getBookingStatusText = (status: Booking["status"]) => {
     switch (status) {
       case "pending":
         return "Chờ xác nhận"
@@ -195,14 +204,12 @@ export function CalendarView() {
         <CardContent>
           {/* Calendar Grid */}
           <div className="grid grid-cols-7 gap-1">
-            {/* Weekday Headers */}
             {WEEKDAYS.map((day) => (
               <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground">
                 {day}
               </div>
             ))}
 
-            {/* Calendar Days */}
             {calendarDays.map((day, index) => (
               <div
                 key={index}
@@ -211,15 +218,22 @@ export function CalendarView() {
                   !day.isCurrentMonth && "bg-muted/20 text-muted-foreground",
                   isToday(day.date) && "bg-primary/10 border-primary",
                 )}
-                onClick={() => handleDayClick(day)}
+                onClick={() => {
+                  if (day.bookings.length === 1) {
+                    setSelectedBooking(day.bookings[0])
+                  } else if (day.bookings.length > 1) {
+                    setSelectedDayBookings(day.bookings)
+                  }
+                }}
               >
                 <div className="flex flex-col h-full">
                   <div className={cn("text-sm font-medium mb-1", isToday(day.date) && "text-primary font-bold")}>
                     {day.date.getDate()}
+                    {isToday(day.date) && <Badge className="ml-2 bg-primary text-white">Hôm nay</Badge>}
                   </div>
 
                   <div className="flex-1 space-y-1">
-                    {day.bookings.slice(0, 2).map((booking, bookingIndex) => (
+                    {day.bookings.slice(0, 2).map((booking) => (
                       <div
                         key={booking.id}
                         className={cn(
@@ -253,26 +267,12 @@ export function CalendarView() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-              <span className="text-sm">Chờ xác nhận</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-500 rounded"></div>
-              <span className="text-sm">Đã xác nhận</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-500 rounded"></div>
-              <span className="text-sm">Đang thuê</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gray-500 rounded"></div>
-              <span className="text-sm">Hoàn thành</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-500 rounded"></div>
-              <span className="text-sm">Đã hủy</span>
-            </div>
+            {Object.entries(STATUS_COLORS).map(([key, color]) => (
+              <div key={key} className="flex items-center gap-2">
+                <div className={cn("w-4 h-4 rounded", color)}></div>
+                <span className="text-sm">{getBookingStatusText(key as Booking["status"])}</span>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -313,7 +313,9 @@ export function CalendarView() {
 
                 <div className="flex items-center gap-2">
                   <Camera className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{selectedBooking.cameraName}</span>
+                  <span className="text-sm font-medium">
+                    {selectedBooking.cameraName} (ID: {selectedBooking.cameraId})
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -327,10 +329,16 @@ export function CalendarView() {
                   </div>
                 </div>
 
-                <div className="border-t pt-3">
+                <div className="border-t pt-3 space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Đơn giá:</span>
+                    <span className="font-medium">{selectedBooking.dailyRate.toLocaleString("vi-VN")}đ / ngày</span>
+                  </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Tổng tiền:</span>
-                    <span className="font-bold text-lg">{selectedBooking.totalAmount.toLocaleString("vi-VN")}đ</span>
+                    <span className="font-bold text-lg">
+                      {selectedBooking.totalAmount.toLocaleString("vi-VN")}đ
+                    </span>
                   </div>
                 </div>
 
@@ -341,6 +349,41 @@ export function CalendarView() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Day bookings list dialog */}
+      <Dialog open={!!selectedDayBookings} onOpenChange={() => setSelectedDayBookings(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <List className="h-5 w-5" />
+              Danh sách đặt thuê trong ngày
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedDayBookings && (
+            <div className="space-y-3">
+              {selectedDayBookings.map((b) => (
+                <div
+                  key={b.id}
+                  className="p-2 border rounded cursor-pointer hover:bg-muted"
+                  onClick={() => {
+                    setSelectedBooking(b)
+                    setSelectedDayBookings(null)
+                  }}
+                >
+                  <div className="flex justify-between items-center">
+                    <p className="font-medium">{b.customerName}</p>
+                    <Badge className={cn("text-white", STATUS_COLORS[b.status])}>
+                      {getBookingStatusText(b.status)}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{b.cameraName}</p>
+                </div>
+              ))}
             </div>
           )}
         </DialogContent>
