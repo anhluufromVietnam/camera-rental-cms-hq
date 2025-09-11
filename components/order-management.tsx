@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { ref, onValue, update, remove, get } from "firebase/database"
+import { ref, onValue, update, push, remove, get } from "firebase/database"
 import { db } from "@/firebase.config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -196,19 +196,29 @@ export function OrderManagement() {
     notes?: string | null
   ) => {
     try {
-      // tìm đơn gốc trong local state
+      // lấy đơn gốc từ local state
       const orig = bookings.find((b) => b.id === bookingId)
+      if (!orig) return
 
       const bookingRef = ref(db, `bookings/${bookingId}`)
       const payload: any = { status }
 
-      // ghi adminNotes (nếu null thì xóa hoặc để trống)
-      payload.adminNotes = notes ?? (orig?.adminNotes ?? null)
+      payload.adminNotes = notes ?? (orig.adminNotes ?? null)
 
-      // cập nhật trạng thái đơn trong DB
+      // --- ghi log thay đổi trạng thái ---
+      const logRef = ref(db, `bookings/${bookingId}/statusChangeLogs`)
+      await push(logRef, {
+        oldStatus: orig.status,
+        newStatus: status,
+        changedBy: "admin", // TODO: nếu bạn có auth thì ghi userId / email admin ở đây
+        changedAt: new Date().toISOString(),
+        notes: notes || null,
+      })
+
+      // --- cập nhật trạng thái đơn ---
       await update(bookingRef, payload)
 
-      // nếu đơn có cameraId thì tính lại số lượng available
+      // tính lại available
       if (orig?.cameraId) {
         await recalcCameraAvailability(orig.cameraId)
       }

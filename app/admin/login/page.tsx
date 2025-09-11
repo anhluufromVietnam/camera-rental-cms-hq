@@ -1,7 +1,6 @@
 "use client"
 import { useState } from "react"
 import type React from "react"
-
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,6 +76,15 @@ export default function AdminLoginPage() {
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full mt-2"
+              onClick={() => router.push("/")}
+            >
+              Quay lại trang đặt máy
             </Button>
           </form>
 

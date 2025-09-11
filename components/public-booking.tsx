@@ -33,13 +33,6 @@ interface CameraType {
   status: "active" | "maintenance" | "retired"
 }
 
-interface BookingType {
-  cameraId: string
-  startDate: string
-  endDate: string
-  status: "pending" | "confirmed" | "cancelled"
-}
-
 interface BookingForm {
   cameraId: string
   startDate: Date | null
@@ -66,6 +59,12 @@ const CameraComponent = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const normalizeDate = (d: string | Date) => {
+  const date = new Date(d)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
 export function PublicBooking() {
   const [cameras, setCameras] = useState<CameraType[]>([])
   const [selectedCamera, setSelectedCamera] = useState<CameraType | null>(null)
@@ -89,7 +88,6 @@ export function PublicBooking() {
 
     const unsubscribeCameras = onValue(camerasRef, (snapshotCam) => {
       const camerasData = snapshotCam.exists() ? snapshotCam.val() : {}
-      // Lấy bookings một lần
       onValue(bookingsRef, (snapshotBook) => {
         const bookingsData = snapshotBook.exists() ? snapshotBook.val() : {}
         const now = new Date()
@@ -102,11 +100,17 @@ export function PublicBooking() {
           // filter bookings liên quan camera này, đang thuê hoặc trong 14 ngày tới
           const relatedBookings = Object.values(bookingsData).filter((b: any) => {
             if (b.cameraId !== id) return false
-            if (b.status === "confirmed") return true
+            if (!b.startDate || !b.endDate) return false
 
-            const start = new Date(b.startDate)
-            const end = new Date(b.endDate)
-            return start <= fourteenDaysLater && end >= now
+            const start = normalizeDate(b.startDate)
+            const end = normalizeDate(b.endDate)
+
+            // bao gồm cả start và end (fix lỗi mất ngày đầu + đơn 1 ngày)
+            const overlaps =
+              b.status === "confirmed" ||
+              (start <= fourteenDaysLater && end >= now)
+
+            return overlaps
           })
 
           const available = Math.max(0, (cam.quantity ?? 1) - relatedBookings.length)
@@ -123,7 +127,9 @@ export function PublicBooking() {
 
   const calculateTotalDays = () => {
     if (!bookingForm.startDate || !bookingForm.endDate) return 0
-    return differenceInDays(bookingForm.endDate, bookingForm.startDate) + 1
+    const start = normalizeDate(bookingForm.startDate)
+    const end = normalizeDate(bookingForm.endDate)
+    return differenceInDays(end, start) + 1
   }
 
   const calculateTotalAmount = () => {
