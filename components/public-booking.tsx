@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ref, onValue, push, update } from "firebase/database"
+import { ref, onValue, push } from "firebase/database"
 import { db } from "@/firebase.config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -43,22 +43,6 @@ interface BookingForm {
   notes: string
 }
 
-const CameraComponent = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v11z"></path>
-    <circle cx="10" cy="10" r="3"></circle>
-    <line x1="14" y1="14" x2="21" y2="21"></line>
-  </svg>
-)
-
 const normalizeDate = (d: string | Date) => {
   const date = new Date(d)
   date.setHours(0, 0, 0, 0)
@@ -97,7 +81,6 @@ export function PublicBooking() {
         const cameraList: CameraType[] = Object.entries(camerasData).map(([id, camValue]) => {
           const cam = camValue as Omit<CameraType, "id">
 
-          // filter bookings liên quan camera này, đang thuê hoặc trong 14 ngày tới
           const relatedBookings = Object.values(bookingsData).filter((b: any) => {
             if (b.cameraId !== id) return false
             if (!b.startDate || !b.endDate) return false
@@ -105,7 +88,6 @@ export function PublicBooking() {
             const start = normalizeDate(b.startDate)
             const end = normalizeDate(b.endDate)
 
-            // bao gồm cả start và end (fix lỗi mất ngày đầu + đơn 1 ngày)
             const overlaps =
               b.status === "confirmed" ||
               (start <= fourteenDaysLater && end >= now)
@@ -186,7 +168,6 @@ export function PublicBooking() {
     }
   }
 
-
   const resetForm = () => {
     setSelectedCamera(null)
     setBookingForm({
@@ -210,51 +191,64 @@ export function PublicBooking() {
       bookingForm.startDate &&
       bookingForm.endDate
     )
+ 
   }
 
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-foreground mb-2">Đặt thuê máy ảnh</h2>
+        <h2 className="text-3xl font-[Be_Vietnam_Pro] text-foreground mb-2">Đặt thuê máy ảnh</h2>
         <p className="text-muted-foreground">Chọn máy ảnh và thời gian thuê phù hợp với nhu cầu của bạn</p>
       </div>
 
       {/* Progress Steps */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            {[
-              { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
-              { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
-              { key: "details", label: "Thông tin", icon: User },
-              { key: "confirm", label: "Xác nhận", icon: Check },
-            ].map((stepItem, index) => {
-              const Icon = stepItem.icon
-              const isActive = step === stepItem.key
-              const isCompleted = ["select", "dates", "details", "confirm"].indexOf(step) > index
+    <Card>
+  <CardContent className="pt-6">
+    <div className="flex justify-between">
+      {[
+        { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
+        { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
+        { key: "details", label: "Thông tin", icon: User },
+        { key: "confirm", label: "Xác nhận", icon: Check },
+      ].map((stepItem, index) => {
+        const Icon = stepItem.icon
+        const isActive = step === stepItem.key
+        const isCompleted = ["select", "dates", "details", "confirm"].indexOf(step) > index
 
-              return (
-                <div key={stepItem.key} className="flex items-center">
-                  <div
-                    className={cn(
-                      "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors",
-                      isActive
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : isCompleted
-                          ? "border-green-500 bg-green-500 text-white"
-                          : "border-muted-foreground text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="ml-2 text-sm font-medium">{stepItem.label}</div>
-                  {index < 3 && <ChevronRight className="h-4 w-4 mx-4 text-muted-foreground" />}
-                </div>
-              )
-            })}
+        return (
+          <div
+            key={stepItem.key}
+            className="flex-1 flex flex-col items-center text-center cursor-pointer"
+            onClick={() => setStep(stepItem.key as any)}
+          >
+            <div
+              className={cn(
+                "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors",
+                isActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : isCompleted
+                  ? "border-green-500 bg-green-500 text-white"
+                  : "border-muted-foreground text-muted-foreground",
+              )}
+            >
+              <Icon className="h-5 w-5" />
+            </div>
+            <div
+              className={cn(
+                "mt-2 text-sm font-medium",
+                isActive ? "text-primary" : "text-muted-foreground hover:text-primary"
+              )}
+            >
+              {stepItem.label}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        )
+      })}
+    </div>
+  </CardContent>
+</Card>
+
+
 
       {/* Step 1: Camera Selection */}
       {step === "select" && (
@@ -274,18 +268,18 @@ export function PublicBooking() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
+                  <Label className="text-sm font-[Be_Vietnam_Pro]">Loại máy</Label>
                   <Badge variant="secondary">{camera.category}</Badge>
-                  <div className="text-right">
-                    <p className="font-bold text-lg text-primary">{camera.dailyRate.toLocaleString("vi-VN")}đ</p>
-                    <p className="text-sm text-muted-foreground">/ ngày</p>
-                  </div>
                 </div>
 
-                <p className="text-sm text-muted-foreground">{camera.description}</p>
+                <div>
+                  <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Mô tả</Label>
+                  <p className="text-sm text-muted-foreground">{camera.description}</p>
+                </div>
 
-                <div className="text-sm">
-                  <p className="font-medium">Thông số:</p>
-                  <p className="text-muted-foreground">{camera.specifications}</p>
+                <div>
+                  <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Thông số</Label>
+                  <p className="text-sm text-muted-foreground">{camera.specifications}</p>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -314,7 +308,7 @@ export function PublicBooking() {
           <CardContent className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Ngày bắt đầu</Label>
+                <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ngày bắt đầu</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left bg-transparent">
@@ -337,7 +331,7 @@ export function PublicBooking() {
               </div>
 
               <div className="space-y-2">
-                <Label>Ngày kết thúc</Label>
+                <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ngày kết thúc</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left bg-transparent">
@@ -363,16 +357,16 @@ export function PublicBooking() {
                 <CardContent className="pt-4">
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span>Số ngày thuê:</span>
-                      <span className="font-medium">{calculateTotalDays()} ngày</span>
+                      <Label className="text-sm font-[Be_Vietnam_Pro]">Số ngày thuê</Label>
+                      <span className="font-[Be_Vietnam_Pro]">{calculateTotalDays()} ngày</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Giá thuê/ngày:</span>
-                      <span className="font-medium">{selectedCamera.dailyRate.toLocaleString("vi-VN")}đ</span>
+                      <Label className="text-sm font-[Be_Vietnam_Pro]">Giá thuê/ngày</Label>
+                      <span className="font-[Be_Vietnam_Pro]">{selectedCamera.dailyRate.toLocaleString("vi-VN")}đ</span>
                     </div>
                     <Separator />
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Tổng cộng:</span>
+                    <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
+                      <Label className="text-sm font-[Be_Vietnam_Pro]">Tổng cộng</Label>
                       <span className="text-primary">{calculateTotalAmount().toLocaleString("vi-VN")}đ</span>
                     </div>
                   </div>
@@ -402,7 +396,7 @@ export function PublicBooking() {
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Họ và tên *</Label>
+                <Label htmlFor="name" className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Họ và tên *</Label>
                 <Input
                   id="name"
                   value={bookingForm.customerName}
@@ -410,30 +404,52 @@ export function PublicBooking() {
                   placeholder="Nhập họ và tên"
                 />
               </div>
+              </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Số điện thoại *</Label>
+                <Label htmlFor="phone" className="block mb-1 text-sm font-medium">Số điện thoại *</Label>
                 <Input
                   id="phone"
+                  type="tel"
                   value={bookingForm.customerPhone}
-                  onChange={(e) => setBookingForm((prev) => ({ ...prev, customerPhone: e.target.value }))}
-                  placeholder="Nhập số điện thoại"
+                  onChange={(e) => {
+                      const value = e.target.value
+                      setBookingForm((prev) => ({ ...prev, customerPhone: value }))
+                  if (value === "" || /^[0-9]{9,11}$/.test(value)) {
+                    setPhoneError("")
+                  } else {
+                      setPhoneError("Yêu cầu nhập đúng định dạng số điện thoại (9-11 chữ số).")
+                  }
+                }}
+                    placeholder="Nhập số điện thoại"
+                    required
+                    pattern="^[0-9]{9,11}$"
+            />
+            
+                    
+                    </div>
+
+
+            <div className="space-y-2">
+                <Label htmlFor="email" className="block mb-1 text-sm font-medium">Email *</Label>
+                    <Input
+                          id="email"
+                          type="email"
+                          value={bookingForm.customerEmail}
+                          onChange={(e) => {
+                          const value = e.target.value
+                          e.target.setCustomValidity(
+                          /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value) ? "" : "Email không hợp lệ, vui lòng nhập lại"
+                      )
+                        setBookingForm((prev) => ({ ...prev, customerEmail: value }))
+                      }}
+                    placeholder="Nhập địa chỉ email"
+                 required
                 />
-              </div>
+
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={bookingForm.customerEmail}
-                onChange={(e) => setBookingForm((prev) => ({ ...prev, customerEmail: e.target.value }))}
-                placeholder="Nhập địa chỉ email"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Ghi chú</Label>
+              <Label htmlFor="notes" className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ghi chú</Label>
               <Textarea
                 id="notes"
                 value={bookingForm.notes}
@@ -467,7 +483,7 @@ export function PublicBooking() {
               <div className="flex items-center gap-3 p-4 border rounded-lg">
                 <CameraIcon className="h-8 w-8 text-primary" />
                 <div>
-                  <h4 className="font-semibold">{selectedCamera.name}</h4>
+                  <h4 className="font-[Be_Vietnam_Pro]">{selectedCamera.name}</h4>
                   <p className="text-sm text-muted-foreground">
                     {selectedCamera.brand} {selectedCamera.model}
                   </p>
@@ -479,10 +495,9 @@ export function PublicBooking() {
                   <div className="flex items-center gap-2">
                     <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Thời gian thuê</p>
+                      <p className="text-sm font-[Be_Vietnam_Pro]">Thời gian thuê</p>
                       <p className="text-sm text-muted-foreground">
-                        {bookingForm.startDate && format(bookingForm.startDate, "dd/MM/yyyy", { locale: vi })} -{" "}
-                        {bookingForm.endDate && format(bookingForm.endDate, "dd/MM/yyyy", { locale: vi })}
+                        {bookingForm.startDate && format(bookingForm.startDate, "dd/MM/yyyy", { locale: vi })} - {bookingForm.endDate && format(bookingForm.endDate, "dd/MM/yyyy", { locale: vi })}
                       </p>
                     </div>
                   </div>
@@ -490,7 +505,7 @@ export function PublicBooking() {
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Số ngày</p>
+                      <p className="text-sm font-[Be_Vietnam_Pro]">Số ngày</p>
                       <p className="text-sm text-muted-foreground">{calculateTotalDays()} ngày</p>
                     </div>
                   </div>
@@ -500,7 +515,7 @@ export function PublicBooking() {
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Khách hàng</p>
+                      <p className="text-sm font-[Be_Vietnam_Pro]">Khách hàng</p>
                       <p className="text-sm text-muted-foreground">{bookingForm.customerName}</p>
                     </div>
                   </div>
@@ -508,7 +523,7 @@ export function PublicBooking() {
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Liên hệ</p>
+                      <p className="text-sm font-[Be_Vietnam_Pro]">Liên hệ</p>
                       <p className="text-sm text-muted-foreground">{bookingForm.customerEmail}</p>
                       <p className="text-sm text-muted-foreground">{bookingForm.customerPhone}</p>
                     </div>
@@ -518,7 +533,7 @@ export function PublicBooking() {
 
               {bookingForm.notes && (
                 <div className="p-4 bg-muted/50 rounded-lg">
-                  <p className="text-sm font-medium mb-1">Ghi chú:</p>
+                  <p className="text-sm font-[Be_Vietnam_Pro] mb-1">Ghi chú:</p>
                   <p className="text-sm text-muted-foreground">{bookingForm.notes}</p>
                 </div>
               )}
@@ -531,7 +546,7 @@ export function PublicBooking() {
                       <span>{(calculateTotalDays() * selectedCamera.dailyRate).toLocaleString("vi-VN")}đ</span>
                     </div>
                     <Separator />
-                    <div className="flex justify-between text-lg font-bold">
+                    <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
                       <span>Tổng cộng:</span>
                       <span className="text-primary">{calculateTotalAmount().toLocaleString("vi-VN")}đ</span>
                     </div>
@@ -579,7 +594,7 @@ export function PublicBooking() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <CameraIcon className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Hiện tại không có máy ảnh</h3>
+            <h3 className="text-lg font-[Be_Vietnam_Pro] mb-2">Hiện tại không có máy ảnh</h3>
             <p className="text-muted-foreground text-center">
               Tất cả máy ảnh đang được thuê hoặc bảo trì. Vui lòng quay lại sau.
             </p>

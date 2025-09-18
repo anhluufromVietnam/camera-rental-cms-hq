@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="nickname"
                 required
               />
             </div>
@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="1234"
+                placeholder="******"
                 required
               />
             </div>
@@ -89,7 +89,7 @@ export default function AdminLoginPage() {
           </form>
 
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            <p>Demo: admin / 1234</p>
+            <p>Demo: version</p>
           </div>
         </CardContent>
       </Card>
