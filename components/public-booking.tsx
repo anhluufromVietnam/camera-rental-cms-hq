@@ -13,11 +13,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
-import { CameraIcon, CalendarIcon, Clock, Check, ChevronRight, Mail, User } from "lucide-react"
+import { CameraIcon, CalendarIcon, Clock, Check, Mail, User } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { format, differenceInDays } from "date-fns"
+import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 
 interface CameraType {
   id: string
@@ -26,8 +27,6 @@ interface CameraType {
   model: string
   category: string
   dailyRate: number
-  quantity: number
-  available: number
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
@@ -36,7 +35,9 @@ interface CameraType {
 interface BookingForm {
   cameraId: string
   startDate: Date | null
+  startTime?: string
   endDate: Date | null
+  endTime?: string
   customerName: string
   customerEmail: string
   customerPhone: string
@@ -64,60 +65,55 @@ export function PublicBooking() {
   const [step, setStep] = useState<"select" | "dates" | "details" | "confirm">("select")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [stepError, setStepError] = useState("")
+  const [phoneError, setPhoneError] = useState<string>("")
+  const [uploadedInvoice, setUploadedInvoice] = useState<File | null>(null)
+  const [qrImageUrl, setQrImageUrl] = useState<string>("https://via.placeholder.com/150") // link QR mặc định
+  const [invoiceError, setInvoiceError] = useState<string>("")
+
   const { toast } = useToast()
 
   useEffect(() => {
     const camerasRef = ref(db, "cameras")
     const bookingsRef = ref(db, "bookings")
 
-    const unsubscribeCameras = onValue(camerasRef, (snapshotCam) => {
-      const camerasData = snapshotCam.exists() ? snapshotCam.val() : {}
-      onValue(bookingsRef, (snapshotBook) => {
-        const bookingsData = snapshotBook.exists() ? snapshotBook.val() : {}
-        const now = new Date()
-        const fourteenDaysLater = new Date()
-        fourteenDaysLater.setDate(now.getDate() + 14)
+    // đọc đồng thời cameras và bookings
+    const handleData = (camerasSnap: any, bookingsSnap: any) => {
+      const camerasData = camerasSnap.exists() ? camerasSnap.val() : {}
+      const bookingsData = bookingsSnap.exists() ? bookingsSnap.val() : {}
+      const now = new Date()
+      const fourteenDaysLater = new Date()
+      fourteenDaysLater.setDate(now.getDate() + 14)
 
-        const cameraList: CameraType[] = Object.entries(camerasData).map(([id, camValue]) => {
-          const cam = camValue as Omit<CameraType, "id">
+      const cameraList = Object.entries(camerasData).map(([id, camValue]) => {
+        const cam = camValue as Omit<CameraType, "id">
 
-          const relatedBookings = Object.values(bookingsData).filter((b: any) => {
-            if (b.cameraId !== id) return false
-            if (!b.startDate || !b.endDate) return false
-
-            const start = normalizeDate(b.startDate)
-            const end = normalizeDate(b.endDate)
-
-            const overlaps =
-              b.status === "confirmed" ||
-              (start <= fourteenDaysLater && end >= now)
-
-            return overlaps
-          })
-
-          const available = Math.max(0, (cam.quantity ?? 1) - relatedBookings.length)
-
-          return { id, ...cam, available }
+        // kiểm tra xem camera có bị booking trong 14 ngày tới không
+        const isBooked = Object.values(bookingsData).some((b: any) => {
+          if (b.cameraId !== id) return false
+          if (!b.startDate || !b.endDate) return false
+          const start = normalizeDate(b.startDate)
+          const end = normalizeDate(b.endDate)
+          // chỉ coi confirmed mới là booking
+          return b.status === "confirmed" && start <= fourteenDaysLater && end >= now
         })
 
-        setCameras(cameraList.filter((c) => c.status === "active" && c.available > 0))
+        return { id, ...cam, isBooked }
+      })
+
+      // lọc chỉ camera active và chưa bị book
+      setCameras(cameraList.filter((c) => c.status === "active" && !c.isBooked))
+    }
+
+    const unsubCameras = onValue(camerasRef, (snapCam) => {
+      onValue(bookingsRef, (snapBook) => {
+        handleData(snapCam, snapBook)
       })
     })
 
-    return () => unsubscribeCameras()
+    return () => unsubCameras()
   }, [])
 
-  const calculateTotalDays = () => {
-    if (!bookingForm.startDate || !bookingForm.endDate) return 0
-    const start = normalizeDate(bookingForm.startDate)
-    const end = normalizeDate(bookingForm.endDate)
-    return differenceInDays(end, start) + 1
-  }
-
-  const calculateTotalAmount = () => {
-    if (!selectedCamera) return 0
-    return calculateTotalDays() * selectedCamera.dailyRate
-  }
 
   const handleCameraSelect = (camera: CameraType) => {
     setSelectedCamera(camera)
@@ -191,64 +187,145 @@ export function PublicBooking() {
       bookingForm.startDate &&
       bookingForm.endDate
     )
- 
+
   }
+
+  const stepsConfig = [
+    { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
+    { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
+    { key: "details", label: "Thông tin", icon: User },
+    { key: "confirm", label: "Xác nhận", icon: Check },
+  ] as const
+
+  const validateStep = (key: (typeof stepsConfig)[number]["key"]) => {
+    if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
+    if (key === "dates" && (!bookingForm.startDate || !bookingForm.endDate))
+      return "Vui lòng chọn ngày thuê"
+    if (key === "details" && !isFormValid())
+      return "Vui lòng điền đầy đủ thông tin"
+    return ""
+  }
+
+  const handleStepClick = (targetKey: string) => {
+    setStepError("")
+    const stepKeys = stepsConfig.map((s) => s.key)
+    const currentIndex = stepKeys.indexOf(step)
+    const targetIndex = stepKeys.indexOf(targetKey as any)
+
+    if (targetIndex <= currentIndex) {
+      setStep(targetKey as any)
+      setStepError("")
+      return
+    }
+
+    // Validate all previous steps
+    for (let i = 0; i < targetIndex; i++) {
+      const err = validateStep(stepKeys[i])
+      if (err) {
+        setStepError(err)
+        return
+      }
+    }
+
+    setStep(targetKey as any)
+    setStepError("")
+  }
+
+  const calculateTotalDays = () => {
+    if (!bookingForm.startDate || !bookingForm.endDate || !bookingForm.startTime || !bookingForm.endTime) {
+      return 0;
+    }
+
+    const startDateTime = new Date(bookingForm.startDate);
+    const [sh, sm] = bookingForm.startTime.split(":").map(Number);
+    startDateTime.setHours(sh, sm, 0, 0);
+
+    const endDateTime = new Date(bookingForm.endDate);
+    const [eh, em] = bookingForm.endTime.split(":").map(Number);
+    endDateTime.setHours(eh, em, 0, 0);
+
+    if (endDateTime <= startDateTime) return 0;
+
+    const startDay = new Date(startDateTime);
+    startDay.setHours(0, 0, 0, 0);
+
+    const endDay = new Date(endDateTime);
+    endDay.setHours(0, 0, 0, 0);
+
+    let diffDays = Math.floor((endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24));
+
+    diffDays += 1;
+
+    return diffDays;
+  };
+
+  const calculateTotalAmount = () => {
+    const days = calculateTotalDays();
+    if (!days || !selectedCamera) return 0;
+    return days * selectedCamera.dailyRate;
+  };
 
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-3xl font-[Be_Vietnam_Pro] text-foreground mb-2">Đặt thuê máy ảnh</h2>
-        <p className="text-muted-foreground">Chọn máy ảnh và thời gian thuê phù hợp với nhu cầu của bạn</p>
+        <h2 className="text-3xl font-[Be_Vietnam_Pro] text-foreground mb-2">
+          Đặt thuê máy ảnh
+        </h2>
+        <p className="text-muted-foreground">
+          Chọn máy ảnh và thời gian thuê phù hợp với nhu cầu của bạn
+        </p>
       </div>
 
       {/* Progress Steps */}
-    <Card>
-  <CardContent className="pt-6">
-    <div className="flex justify-between">
-      {[
-        { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
-        { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
-        { key: "details", label: "Thông tin", icon: User },
-        { key: "confirm", label: "Xác nhận", icon: Check },
-      ].map((stepItem, index) => {
-        const Icon = stepItem.icon
-        const isActive = step === stepItem.key
-        const isCompleted = ["select", "dates", "details", "confirm"].indexOf(step) > index
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex justify-between">
+            {stepsConfig.map((stepItem, index) => {
+              const Icon = stepItem.icon
+              const isActive = step === stepItem.key
+              const isCompleted =
+                stepsConfig.findIndex((s) => s.key === step) > index
 
-        return (
-          <div
-            key={stepItem.key}
-            className="flex-1 flex flex-col items-center text-center cursor-pointer"
-            onClick={() => setStep(stepItem.key as any)}
-          >
-            <div
-              className={cn(
-                "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors",
-                isActive
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : isCompleted
-                  ? "border-green-500 bg-green-500 text-white"
-                  : "border-muted-foreground text-muted-foreground",
-              )}
-            >
-              <Icon className="h-5 w-5" />
-            </div>
-            <div
-              className={cn(
-                "mt-2 text-sm font-medium",
-                isActive ? "text-primary" : "text-muted-foreground hover:text-primary"
-              )}
-            >
-              {stepItem.label}
-            </div>
+              return (
+                <div
+                  key={stepItem.key}
+                  className={cn(
+                    "flex-1 flex flex-col items-center text-center select-none",
+                    isActive ? "cursor-default" : "cursor-pointer"
+                  )}
+                  onClick={() => handleStepClick(stepItem.key)}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors",
+                      isActive
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : isCompleted
+                          ? "border-green-500 bg-green-500 text-white"
+                          : "border-muted-foreground text-muted-foreground"
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div
+                    className={cn(
+                      "mt-2 text-sm font-medium",
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-primary"
+                    )}
+                  >
+                    {stepItem.label}
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        )
-      })}
-    </div>
-  </CardContent>
-</Card>
-
-
+          {stepError && (
+            <p className="text-sm text-red-500 text-center mt-4">{stepError}</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Step 1: Camera Selection */}
       {step === "select" && (
@@ -283,10 +360,6 @@ export function PublicBooking() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-sm">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>Còn {camera.available} máy</span>
-                  </div>
                   <Button onClick={() => handleCameraSelect(camera)}>Chọn máy này</Button>
                 </div>
               </CardContent>
@@ -305,54 +378,90 @@ export function PublicBooking() {
             </CardTitle>
             <CardDescription>Chọn ngày bắt đầu và kết thúc thuê máy</CardDescription>
           </CardHeader>
+
           <CardContent className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ngày bắt đầu</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left bg-transparent">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {bookingForm.startDate
-                        ? format(bookingForm.startDate, "dd/MM/yyyy", { locale: vi })
-                        : "Chọn ngày"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={bookingForm.startDate || undefined}
-                      onSelect={(date) => setBookingForm((prev) => ({ ...prev, startDate: date || null }))}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="grid grid-cols-2 gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left bg-transparent">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {bookingForm.startDate
+                          ? new Date(bookingForm.startDate).toLocaleDateString("vi-VN")
+                          : "Chọn ngày"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={bookingForm.startDate || undefined}
+                        onSelect={(date) => setBookingForm((prev) => ({ ...prev, startDate: date || null }))}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <Select
+                    value={bookingForm.startTime || ""}
+                    onValueChange={(value) => setBookingForm((prev) => ({ ...prev, startTime: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Giờ nhận" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="08:00">08:00 sáng</SelectItem>
+                      <SelectItem value="10:00">10:00 sáng</SelectItem>
+                      <SelectItem value="12:00">12:00 trưa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ngày kết thúc</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left bg-transparent">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {bookingForm.endDate ? format(bookingForm.endDate, "dd/MM/yyyy", { locale: vi }) : "Chọn ngày"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={bookingForm.endDate || undefined}
-                      onSelect={(date) => setBookingForm((prev) => ({ ...prev, endDate: date || null }))}
-                      disabled={(date) => date < (bookingForm.startDate || new Date())}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="grid grid-cols-2 gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left bg-transparent">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {bookingForm.endDate
+                          ? new Date(bookingForm.endDate).toLocaleDateString("vi-VN")
+                          : "Chọn ngày"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={bookingForm.endDate || undefined}
+                        onSelect={(date) => setBookingForm((prev) => ({ ...prev, endDate: date || null }))}
+                        disabled={(date) => date < (bookingForm.startDate || new Date())}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <Select
+                    value={bookingForm.endTime || ""}
+                    onValueChange={(value) => setBookingForm((prev) => ({ ...prev, endTime: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Giờ trả" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="14:00">14:00 chiều</SelectItem>
+                      <SelectItem value="16:00">16:00 chiều</SelectItem>
+                      <SelectItem value="18:00">18:00 chiều</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
-            {bookingForm.startDate && bookingForm.endDate && (
+            {/* Show summary if dates are selected */}
+            {bookingForm.startDate && bookingForm.endDate && bookingForm.startTime && bookingForm.endTime && (
               <Card className="bg-muted/50">
                 <CardContent className="pt-4">
                   <div className="space-y-2">
@@ -386,6 +495,7 @@ export function PublicBooking() {
         </Card>
       )}
 
+
       {/* Step 3: Customer Details */}
       {step === "details" && (
         <Card className="max-w-2xl mx-auto">
@@ -404,47 +514,47 @@ export function PublicBooking() {
                   placeholder="Nhập họ và tên"
                 />
               </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="block mb-1 text-sm font-medium">Số điện thoại *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={bookingForm.customerPhone}
-                  onChange={(e) => {
-                      const value = e.target.value
-                      setBookingForm((prev) => ({ ...prev, customerPhone: value }))
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="block mb-1 text-sm font-medium">Số điện thoại *</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={bookingForm.customerPhone}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setBookingForm((prev) => ({ ...prev, customerPhone: value }))
                   if (value === "" || /^[0-9]{9,11}$/.test(value)) {
                     setPhoneError("")
                   } else {
-                      setPhoneError("Yêu cầu nhập đúng định dạng số điện thoại (9-11 chữ số).")
+                    setPhoneError("Yêu cầu nhập đúng định dạng số điện thoại (9-11 chữ số).")
                   }
                 }}
-                    placeholder="Nhập số điện thoại"
-                    required
-                    pattern="^[0-9]{9,11}$"
-            />
-            
-                    
-                    </div>
+                placeholder="Nhập số điện thoại"
+                required
+                pattern="^[0-9]{9,11}$"
+              />
+
+
+            </div>
 
 
             <div className="space-y-2">
-                <Label htmlFor="email" className="block mb-1 text-sm font-medium">Email *</Label>
-                    <Input
-                          id="email"
-                          type="email"
-                          value={bookingForm.customerEmail}
-                          onChange={(e) => {
-                          const value = e.target.value
-                          e.target.setCustomValidity(
-                          /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value) ? "" : "Email không hợp lệ, vui lòng nhập lại"
-                      )
-                        setBookingForm((prev) => ({ ...prev, customerEmail: value }))
-                      }}
-                    placeholder="Nhập địa chỉ email"
-                 required
-                />
+              <Label htmlFor="email" className="block mb-1 text-sm font-medium">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={bookingForm.customerEmail}
+                onChange={(e) => {
+                  const value = e.target.value
+                  e.target.setCustomValidity(
+                    /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value) ? "" : "Email không hợp lệ, vui lòng nhập lại"
+                  )
+                  setBookingForm((prev) => ({ ...prev, customerEmail: value }))
+                }}
+                placeholder="Nhập địa chỉ email"
+                required
+              />
 
             </div>
 

@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { db } from "@/firebase.config"
-import { ref, onValue, push, update, remove, } from "firebase/database"
+import { ref, onValue, push, update, remove } from "firebase/database"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,8 +30,6 @@ interface Camera {
   model: string
   category: string
   dailyRate: number
-  quantity: number
-  available: number
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
@@ -70,17 +68,8 @@ export function CameraManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
 
-  // Load cameras from localStorage on component mount
+  // Load cameras from Firebase
   useEffect(() => {
-    const cached = localStorage.getItem("cameras")
-    if (cached) {
-      try {
-        setCameras(JSON.parse(cached))
-      } catch (e) {
-        console.error("Lỗi parse localStorage:", e)
-      }
-    }
-
     const camerasRef = ref(db, "cameras")
     const unsubscribe = onValue(camerasRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -98,21 +87,7 @@ export function CameraManagement() {
     return () => unsubscribe()
   }, [])
 
-  // Save cameras to localStorage whenever cameras state changes
-  useEffect(() => {
-    localStorage.setItem("cameras", JSON.stringify(cameras))
-  }, [cameras])
-
   const handleAddCamera = async (cameraData: Omit<Camera, "id">) => {
-    if (cameraData.available > cameraData.quantity) {
-      toast({
-        title: "Lỗi",
-        description: "Số lượng có sẵn không được lớn hơn tổng số lượng",
-        variant: "destructive",
-      })
-      return
-    }
-
     try {
       await push(ref(db, "cameras"), cameraData)
       setIsAddDialogOpen(false)
@@ -129,16 +104,6 @@ export function CameraManagement() {
 
   const handleEditCamera = async (cameraData: Omit<Camera, "id">) => {
     if (!editingCamera) return
-
-    if (cameraData.available > cameraData.quantity) {
-      toast({
-        title: "Lỗi",
-        description: "Số lượng có sẵn không được lớn hơn tổng số lượng",
-        variant: "destructive",
-      })
-      return
-    }
-
     try {
       await update(ref(db, `cameras/${editingCamera.id}`), cameraData)
       setEditingCamera(null)
@@ -245,14 +210,6 @@ export function CameraManagement() {
                   <Label className="text-muted-foreground">Giá thuê/ngày</Label>
                   <p className="font-medium">{camera.dailyRate.toLocaleString("vi-VN")}đ</p>
                 </div>
-                <div>
-                  <Label className="text-muted-foreground">Tổng số lượng</Label>
-                  <p className="font-medium">{camera.quantity}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Có sẵn</Label>
-                  <p className="font-medium text-green-600">{camera.available}</p>
-                </div>
               </div>
 
               <div>
@@ -326,8 +283,6 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
     model: camera?.model || "",
     category: camera?.category || "",
     dailyRate: camera?.dailyRate || 0,
-    quantity: camera?.quantity || 1,
-    available: camera?.available || 1,
     description: camera?.description || "",
     specifications: camera?.specifications || "",
     status: camera?.status || ("active" as const),
@@ -399,40 +354,17 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="dailyRate">Giá thuê/ngày (VNĐ)</Label>
-            <Input
-              id="dailyRate"
-              type="number"
-              value={formData.dailyRate}
-              onChange={(e) => setFormData((prev) => ({ ...prev, dailyRate: Number.parseInt(e.target.value) || 0 }))}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="quantity">Tổng số lượng</Label>
-            <Input
-              id="quantity"
-              type="number"
-              min="1"
-              value={formData.quantity}
-              onChange={(e) => setFormData((prev) => ({ ...prev, quantity: Number.parseInt(e.target.value) || 1 }))}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="available">Có sẵn</Label>
-            <Input
-              id="available"
-              type="number"
-              min="0"
-              max={formData.quantity}
-              value={formData.available}
-              onChange={(e) => setFormData((prev) => ({ ...prev, available: Number.parseInt(e.target.value) || 0 }))}
-              required
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="dailyRate">Giá thuê/ngày (VNĐ)</Label>
+          <Input
+            id="dailyRate"
+            type="number"
+            value={formData.dailyRate}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, dailyRate: Number.parseInt(e.target.value) || 0 }))
+            }
+            required
+          />
         </div>
 
         <div className="space-y-2">
