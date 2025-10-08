@@ -123,7 +123,7 @@ export function CalendarView() {
       const data: Record<string, any> = snap.val()
       const list: Booking[] = Object.entries(data).map(([id, v]) => {
         const b = { id, ...(v as any) } as Booking
-        // normalize logs if any
+        // normalize logs object to array
         const logsObj = (v && (v as any).statusChangeLogs) || null
         if (logsObj && typeof logsObj === "object") {
           b.__logs = Object.entries(logsObj).map(([lid, lv]: [string, any]) => ({
@@ -143,7 +143,6 @@ export function CalendarView() {
     return () => unsub()
   }, [])
 
-  // Persist cache (optional)
   useEffect(() => {
     try {
       localStorage.setItem("bookings", JSON.stringify(bookings))

@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
-import { CameraIcon, CalendarIcon, Clock, Check, Mail, User } from "lucide-react"
+import { CameraIcon, CalendarIcon, Clock, Check, Mail, User, BrickWallIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
@@ -27,6 +27,11 @@ interface CameraType {
   model: string
   category: string
   dailyRate: number
+  ondayRate: number
+  fullDayRate: number
+  threeDaysRate: number
+  fiveDaysRate: number
+  isBooked: boolean
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
@@ -62,22 +67,30 @@ export function PublicBooking() {
     customerPhone: "",
     notes: "",
   })
-  const [step, setStep] = useState<"select" | "dates" | "details" | "confirm">("select")
+  const [step, setStep] = useState<"select" | "dates" | "details" | "payment" | "confirm">("select")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [stepError, setStepError] = useState("")
   const [phoneError, setPhoneError] = useState<string>("")
-  const [uploadedInvoice, setUploadedInvoice] = useState<File | null>(null)
-  const [qrImageUrl, setQrImageUrl] = useState<string>("https://via.placeholder.com/150") // link QR mặc định
-  const [invoiceError, setInvoiceError] = useState<string>("")
+  const [paymentFile, setPaymentFile] = useState<File | null>(null)
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false)
+
 
   const { toast } = useToast()
+  useEffect(() => {
+    if (!showSuccess) return
+    const timer = setTimeout(() => {
+      setShowSuccess(false)
+      setStep("select")
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [showSuccess])
+
 
   useEffect(() => {
     const camerasRef = ref(db, "cameras")
     const bookingsRef = ref(db, "bookings")
 
-    // đọc đồng thời cameras và bookings
     const handleData = (camerasSnap: any, bookingsSnap: any) => {
       const camerasData = camerasSnap.exists() ? camerasSnap.val() : {}
       const bookingsData = bookingsSnap.exists() ? bookingsSnap.val() : {}
@@ -88,20 +101,17 @@ export function PublicBooking() {
       const cameraList = Object.entries(camerasData).map(([id, camValue]) => {
         const cam = camValue as Omit<CameraType, "id">
 
-        // kiểm tra xem camera có bị booking trong 14 ngày tới không
         const isBooked = Object.values(bookingsData).some((b: any) => {
           if (b.cameraId !== id) return false
           if (!b.startDate || !b.endDate) return false
           const start = normalizeDate(b.startDate)
           const end = normalizeDate(b.endDate)
-          // chỉ coi confirmed mới là booking
           return b.status === "confirmed" && start <= fourteenDaysLater && end >= now
         })
 
         return { id, ...cam, isBooked }
       })
 
-      // lọc chỉ camera active và chưa bị book
       setCameras(cameraList.filter((c) => c.status === "active" && !c.isBooked))
     }
 
@@ -147,7 +157,7 @@ export function PublicBooking() {
       startDate: format(bookingForm.startDate, "yyyy-MM-dd"),
       endDate: format(bookingForm.endDate, "yyyy-MM-dd"),
       totalDays: calculateTotalDays(),
-      dailyRate: selectedCamera.dailyRate,
+      dailyRate: getPricingInfo().rate,
       totalAmount: calculateTotalAmount(),
       status: "pending",
       createdAt: new Date().toISOString(),
@@ -187,7 +197,6 @@ export function PublicBooking() {
       bookingForm.startDate &&
       bookingForm.endDate
     )
-
   }
 
   const stepsConfig = [
@@ -195,6 +204,8 @@ export function PublicBooking() {
     { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
     { key: "details", label: "Thông tin", icon: User },
     { key: "confirm", label: "Xác nhận", icon: Check },
+    { key: "payment", label: "Thanh toán", icon: BrickWallIcon },
+
   ] as const
 
   const validateStep = (key: (typeof stepsConfig)[number]["key"]) => {
@@ -217,8 +228,6 @@ export function PublicBooking() {
       setStepError("")
       return
     }
-
-    // Validate all previous steps
     for (let i = 0; i < targetIndex; i++) {
       const err = validateStep(stepKeys[i])
       if (err) {
@@ -226,44 +235,131 @@ export function PublicBooking() {
         return
       }
     }
-
     setStep(targetKey as any)
     setStepError("")
   }
 
   const calculateTotalDays = () => {
-    if (!bookingForm.startDate || !bookingForm.endDate || !bookingForm.startTime || !bookingForm.endTime) {
+    if (
+      !bookingForm.startDate ||
+      !bookingForm.endDate ||
+      !bookingForm.startTime ||
+      !bookingForm.endTime
+    ) {
       return 0;
     }
 
-    const startDateTime = new Date(bookingForm.startDate);
+    const diffDate = Math.ceil(
+      (normalizeDate(bookingForm.endDate).getTime() - normalizeDate(bookingForm.startDate).getTime()) /
+      (1000 * 60 * 60 * 24)
+    ) + 1;
+    return diffDate;
+  };
+
+  const calculateTotalHours = () => {
+    if (
+      !bookingForm.startDate ||
+      !bookingForm.endDate ||
+      !bookingForm.startTime ||
+      !bookingForm.endTime
+    ) {
+      return 0;
+    }
+
     const [sh, sm] = bookingForm.startTime.split(":").map(Number);
+    const [eh, em] = bookingForm.endTime.split(":").map(Number);
+
+    const startDateTime = new Date(bookingForm.startDate);
     startDateTime.setHours(sh, sm, 0, 0);
 
     const endDateTime = new Date(bookingForm.endDate);
-    const [eh, em] = bookingForm.endTime.split(":").map(Number);
     endDateTime.setHours(eh, em, 0, 0);
 
-    if (endDateTime <= startDateTime) return 0;
+    if (endDateTime <= startDateTime) {
+      return 0;
+    }
 
-    const startDay = new Date(startDateTime);
-    startDay.setHours(0, 0, 0, 0);
-
-    const endDay = new Date(endDateTime);
-    endDay.setHours(0, 0, 0, 0);
-
-    let diffDays = Math.floor((endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24));
-
-    diffDays += 1;
-
-    return diffDays;
+    const diffHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
+    return diffHours;
   };
+
+  const getPricingInfo = () => {
+    const hours = calculateTotalHours();
+    console.log("Hours received in getPricingInfo:", hours);
+    if (hours === null || hours === undefined || !selectedCamera) {
+      return { rate: 0, label: "", total: 0 };
+    }
+    let rate: number;
+    let label: string;
+
+    if (hours >= 120 && selectedCamera.fiveDaysRate > 0) {
+      rate = selectedCamera.fiveDaysRate;
+      label = "5 ngày trở lên";
+    } else if (hours >= 72 && selectedCamera.threeDaysRate > 0) {
+      rate = selectedCamera.threeDaysRate;
+      label = "3 ngày trở lên";
+    } else if (hours >= 24 && selectedCamera.fullDayRate > 0) {
+      rate = selectedCamera.fullDayRate;
+      label = "1 ngày trở lên";
+    } else {
+      rate = selectedCamera.ondayRate || 0;
+      label = "Trong ngày";
+    }
+
+    const days = Math.ceil(hours / 24);
+    const total = days * rate;
+
+    console.log("Pricing Info:", { rate, label, total, days });
+    return { rate, label, total };
+  };
+
 
   const calculateTotalAmount = () => {
-    const days = calculateTotalDays();
-    if (!days || !selectedCamera) return 0;
-    return days * selectedCamera.dailyRate;
-  };
+    return getPricingInfo().total
+  }
+
+  const [paymentInfo, setPaymentInfo] = useState({
+    bankName: "",
+    accountNumber: "",
+    accountHolder: "",
+    paymentSyntax: "",
+    qrUrl: "",
+  })
+
+  const handlePaymentConfirm = async () => {
+    if (!paymentFile || !selectedCamera) return
+    setIsPaymentSubmitting(true)
+    try {
+      await push(ref(db, "bookings"), {
+        ...bookingForm,
+        cameraName: selectedCamera.name,
+        startDate: format(bookingForm.startDate!, "yyyy-MM-dd"),
+        endDate: format(bookingForm.endDate!, "yyyy-MM-dd"),
+        totalAmount: calculateTotalAmount(),
+        paymentFileName: paymentFile.name,
+        status: "paid",
+        createdAt: new Date().toISOString(),
+      })
+      toast({ title: "Thành công", description: "Thanh toán được xác nhận", variant: "default" })
+      setPaymentFile(null)
+      setStep("select")
+    } catch (err) {
+      console.error(err)
+      toast({ title: "Lỗi", description: "Không thể xác nhận thanh toán", variant: "destructive" })
+    } finally {
+      setIsPaymentSubmitting(false)
+    }
+  }
+
+  useEffect(() => {
+    const paymentRef = ref(db, "paymentInfo")
+    onValue(paymentRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setPaymentInfo(snapshot.val())
+      }
+    })
+  }, [])
+
 
   return (
     <div className="space-y-6">
@@ -469,14 +565,21 @@ export function PublicBooking() {
                       <Label className="text-sm font-[Be_Vietnam_Pro]">Số ngày thuê</Label>
                       <span className="font-[Be_Vietnam_Pro]">{calculateTotalDays()} ngày</span>
                     </div>
+
                     <div className="flex justify-between">
-                      <Label className="text-sm font-[Be_Vietnam_Pro]">Giá thuê/ngày</Label>
-                      <span className="font-[Be_Vietnam_Pro]">{selectedCamera.dailyRate.toLocaleString("vi-VN")}đ</span>
+                      <Label className="text-sm font-[Be_Vietnam_Pro]">Mức giá áp dụng</Label>
+                      <span className="font-[Be_Vietnam_Pro]">
+                        {getPricingInfo().label} ({getPricingInfo().rate.toLocaleString("vi-VN")}đ/ngày)
+                      </span>
                     </div>
+
                     <Separator />
+
                     <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
                       <Label className="text-sm font-[Be_Vietnam_Pro]">Tổng cộng</Label>
-                      <span className="text-primary">{calculateTotalAmount().toLocaleString("vi-VN")}đ</span>
+                      <span className="text-primary">
+                        {getPricingInfo().total.toLocaleString("vi-VN")}đ
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -651,13 +754,8 @@ export function PublicBooking() {
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="pt-4">
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Giá thuê ({calculateTotalDays()} ngày):</span>
-                      <span>{(calculateTotalDays() * selectedCamera.dailyRate).toLocaleString("vi-VN")}đ</span>
-                    </div>
-                    <Separator />
                     <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
-                      <span>Tổng cộng:</span>
+                      <span className="font-[Be_Vietnam_Pro]">Tổng cộng:</span>
                       <span className="text-primary">{calculateTotalAmount().toLocaleString("vi-VN")}đ</span>
                     </div>
                   </div>
@@ -677,28 +775,59 @@ export function PublicBooking() {
         </Card>
       )}
 
+      {/* Step 5: Payment Instructions */}
+      {step === "payment" && selectedCamera && (
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle>Thanh toán</CardTitle>
+            <CardDescription>Quét QR và chuyển khoản theo thông tin dưới đây</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-200 rounded-xl p-6 shadow-sm space-y-5">
+              <h4 className="text-lg font-semibold text-blue-900 flex items-center gap-2">💳 Thông tin chuyển khoản</h4>
+              <div><Label className="text-blue-900 font-medium">Ngân hàng</Label><p>{paymentInfo.bankName}</p></div>
+              <div><Label className="text-blue-900 font-medium">Số tài khoản</Label><p>{paymentInfo.accountNumber}</p></div>
+              <div><Label className="text-blue-900 font-medium">Chủ tài khoản</Label><p>{paymentInfo.accountHolder}</p></div>
+              <div><Label className="text-blue-900 font-medium">Cú pháp chuyển khoản</Label><p>{paymentInfo.paymentSyntax}</p></div>
+            </div>
+            {paymentInfo.qrUrl && <div className="text-center"><img src={paymentInfo.qrUrl} alt="QR Code" className="w-48 mx-auto" /></div>}
+            <div className="space-y-2">
+              <Label>Upload hóa đơn (Ảnh/ PDF)</Label>
+              <Input type="file" accept="image/*,application/pdf" onChange={(e) => setPaymentFile(e.target.files?.[0] || null)} />
+            </div>
+            <Button onClick={handlePaymentConfirm} disabled={!paymentFile || isPaymentSubmitting}>
+              {isPaymentSubmitting ? "Đang xử lý..." : "Xác nhận đã thanh toán"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+
       {/* Success Dialog */}
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md text-sm font-[Be_Vietnam_Pro]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-green-600">
+            <DialogTitle className="flex items-center gap-2 text-green-600 font-semibold">
               <Check className="h-5 w-5" />
               Đặt thuê thành công!
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground">
               Yêu cầu đặt thuê của bạn đã được gửi thành công. Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.
             </DialogDescription>
           </DialogHeader>
+
           <div className="flex gap-2 pt-4">
-            <Button variant="outline" onClick={resetForm} className="flex-1 bg-transparent">
-              Đặt thuê mới
-            </Button>
-            <Button onClick={() => setShowSuccess(false)} className="flex-1">
+            <Button variant="outline" onClick={() => {
+              resetForm()
+              setShowSuccess(false)
+              setTimeout(() => setStep("select"), 200)
+            }} className="flex-1">
               Đóng
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
 
       {cameras.length === 0 && (
         <Card>

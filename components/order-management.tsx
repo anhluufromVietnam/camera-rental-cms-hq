@@ -210,7 +210,7 @@ export function OrderManagement() {
       await push(logRef, {
         oldStatus: orig.status,
         newStatus: status,
-        changedBy: "admin", // TODO: nếu bạn có auth thì ghi userId / email admin ở đây
+        changedBy: "admin", 
         changedAt: new Date().toISOString(),
         notes: notes || null,
       })

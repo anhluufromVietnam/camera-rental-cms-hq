@@ -40,6 +40,12 @@ interface Booking {
   notes?: string
 }
 
+const normalizeDate = (d: string | Date) => {
+  const date = new Date(d)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
 const BOOKING_STATUSES = [
   { value: "pending", label: "Chờ xác nhận", color: "bg-yellow-500" },
   { value: "confirmed", label: "Đã xác nhận", color: "bg-blue-500" },
@@ -159,6 +165,35 @@ export function BookingDashboard() {
     )
   }
 
+  const getPricingLabel = (booking: Booking) => {
+    const startDateTime = new Date(booking.startDate);
+    const [sh, sm] = booking.startDate.split(":").map(Number);
+    startDateTime.setHours(sh, sm, 0, 0);
+
+    const endDateTime = new Date(booking.endDate);
+    const [eh, em] = booking.startDate.split(":").map(Number);
+    endDateTime.setHours(eh, em, 0, 0);
+
+    if (endDateTime <= startDateTime) return 0;
+
+    const diffHours = Math.round(
+      (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60)
+    );
+
+    if (diffHours < 24) return "Trong ngày"
+    if (diffHours >= 24 && diffHours < 72) return "1 ngày trở lên"
+    if (diffHours >= 72 && diffHours < 120) return "3 ngày trở lên"
+    if (diffHours >= 120) return "5 ngày trở lên"
+  }
+
+  const calculateTotalDays = (booking: Booking) => {
+    const diffDate = Math.ceil(
+      (normalizeDate(booking.endDate).getTime() - normalizeDate(booking.startDate).getTime()) /
+      (1000 * 60 * 60 * 24)
+    ) + 1;
+    return diffDate;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -256,20 +291,21 @@ export function BookingDashboard() {
       {/* Booking List */}
       <Card>
         <CardHeader>
-          <CardTitle>Danh sách đơn hàng</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-base font-[Be_Vietnam_Pro] font-semibold">Danh sách đơn hàng</CardTitle>
+          <CardDescription className="text-sm font-[Be_Vietnam_Pro]">
             Hiển thị {filteredBookings.length} trong tổng số {bookings.length} đơn hàng
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <div className="space-y-4">
             {filteredBookings.map((booking) => (
-              <div key={booking.id} className="p-4 border rounded-lg space-y-2">
+              <div key={booking.id} className="p-4 border rounded-lg space-y-2 font-[Be_Vietnam_Pro] text-sm">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="font-semibold">{booking.customerName}</h4>
-                    <p className="text-sm text-muted-foreground">{booking.customerEmail}</p>
-                    <p className="text-sm flex items-center gap-1">
+                    <h4 className="font-semibold text-base">{booking.customerName}</h4>
+                    <p className="text-muted-foreground">{booking.customerEmail}</p>
+                    <p className="flex items-center gap-1">
                       <Phone className="h-4 w-4" /> {booking.customerPhone}
                     </p>
                   </div>
@@ -279,7 +315,7 @@ export function BookingDashboard() {
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <p>
-                      <span className="font-medium">Máy ảnh:</span> {booking.cameraName} ({booking.cameraId})
+                      <span className="font-medium">Máy ảnh:</span> {booking.cameraName}
                     </p>
                     <p className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
@@ -287,17 +323,18 @@ export function BookingDashboard() {
                       {new Date(booking.endDate).toLocaleDateString("vi-VN")}
                     </p>
                     <p>
-                      <span className="font-medium">Số ngày:</span> {booking.totalDays}
+                      <span className="font-medium">Số ngày:</span> {booking.totalDays || 0} ngày
                     </p>
                   </div>
+
                   <div>
                     <p>
                       <span className="font-medium">Giá thuê/ngày:</span>{" "}
-                      {booking.dailyRate.toLocaleString("vi-VN")}đ
+                      {booking.dailyRate?.toLocaleString("vi-VN") || 0}đ
                     </p>
                     <p>
                       <span className="font-medium">Tổng tiền:</span>{" "}
-                      {booking.totalAmount.toLocaleString("vi-VN")}đ
+                      {booking.totalAmount?.toLocaleString("vi-VN") || 0}đ
                     </p>
                     <p>
                       <span className="font-medium">Ngày tạo:</span>{" "}
@@ -307,26 +344,21 @@ export function BookingDashboard() {
                 </div>
 
                 {booking.notes && (
-                  <p className="text-sm italic text-muted-foreground">Ghi chú: {booking.notes}</p>
+                  <p className="italic text-muted-foreground">Ghi chú: {booking.notes}</p>
                 )}
-
-                {/* <div className="flex justify-end">
-                  <Button variant="outline" size="sm">
-                    <Eye className="h-4 w-4 mr-1" /> Chi tiết
-                  </Button>
-                </div> */}
               </div>
             ))}
 
             {filteredBookings.length === 0 && (
-              <div className="text-center py-8">
+              <div className="text-center py-8 text-sm font-[Be_Vietnam_Pro]">
                 <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Không tìm thấy đơn hàng</h3>
+                <h3 className="text-base font-semibold mb-2">Không tìm thấy đơn hàng</h3>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
+
     </div>
   )
 }
