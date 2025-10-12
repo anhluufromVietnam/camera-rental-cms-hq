@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ref, onValue, push } from "firebase/database"
-import { db } from "@/firebase.config"
+import { ref, onValue, push, DatabaseReference } from "firebase/database"
+import { getDownloadURL, uploadBytes, ref as storageRef } from "firebase/storage"
+import { db, storage } from "@/firebase.config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +20,7 @@ import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { Be_Vietnam_Pro, Inter, Manrope } from "next/font/google"
 
 interface CameraType {
   id: string
@@ -67,8 +69,7 @@ export function PublicBooking() {
     customerPhone: "",
     notes: "",
   })
-  const [step, setStep] = useState<"select" | "dates" | "details" | "payment" | "confirm">("select")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [step, setStep] = useState<"select" | "dates" | "details" | "confirm" | "payment">("select")
   const [showSuccess, setShowSuccess] = useState(false)
   const [stepError, setStepError] = useState("")
   const [phoneError, setPhoneError] = useState<string>("")
@@ -85,7 +86,6 @@ export function PublicBooking() {
     }, 3000)
     return () => clearTimeout(timer)
   }, [showSuccess])
-
 
   useEffect(() => {
     const camerasRef = ref(db, "cameras")
@@ -131,6 +131,7 @@ export function PublicBooking() {
     setStep("dates")
   }
 
+
   const handleDateSelect = () => {
     if (!bookingForm.startDate || !bookingForm.endDate) {
       toast({
@@ -143,36 +144,96 @@ export function PublicBooking() {
     setStep("details")
   }
 
-  const handleSubmit = async () => {
-    if (!selectedCamera || !bookingForm.startDate || !bookingForm.endDate) return
-
-    setIsSubmitting(true)
-
-    const newBooking = {
-      customerName: bookingForm.customerName,
-      customerEmail: bookingForm.customerEmail,
-      customerPhone: bookingForm.customerPhone,
-      cameraId: selectedCamera.id,
-      cameraName: selectedCamera.name,
-      startDate: format(bookingForm.startDate, "yyyy-MM-dd"),
-      endDate: format(bookingForm.endDate, "yyyy-MM-dd"),
-      totalDays: calculateTotalDays(),
-      dailyRate: getPricingInfo().rate,
-      totalAmount: calculateTotalAmount(),
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      notes: bookingForm.notes,
+  const handleDetailsSubmit = () => {
+    if (!bookingForm.customerName || !bookingForm.customerPhone) {
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng nhập đầy đủ thông tin khách hàng",
+        variant: "destructive",
+      })
+      return
     }
+    setStep("confirm")
+  }
+
+  useEffect(() => {
+    const paymentRef = ref(db, "paymentInfo")
+
+    const unsub = onValue(paymentRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setPaymentInfo(snapshot.val())
+      } else {
+        console.warn("Không tìm thấy thông tin thanh toán trên Firebase")
+      }
+    })
+
+    return () => unsub()
+  }, [])
+
+  const handlePaymentConfirm = async () => {
+    if (!selectedCamera) {
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng tải lên ảnh xác nhận thanh toán",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsPaymentSubmitting(true)
 
     try {
+      // const paymentStorageRef = storageRef(storage, `payments/${Date.now()}_${paymentFile.name}`)
+      // await uploadBytes(paymentStorageRef, paymentFile)
+      // const downloadUrl = await getDownloadURL(paymentStorageRef)
+      const newBooking = {
+        customerName: bookingForm.customerName,
+        customerEmail: bookingForm.customerEmail,
+        customerPhone: bookingForm.customerPhone,
+        cameraId: selectedCamera.id,
+        cameraName: selectedCamera.name,
+        startDate: format(bookingForm.startDate!, "yyyy-MM-dd"),
+        endDate: format(bookingForm.endDate!, "yyyy-MM-dd"),
+        totalDays: calculateTotalDays(),
+        dailyRate: getPricingInfo().rate,
+        totalAmount: calculateTotalAmount(),
+        paymentProof: null,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        notes: bookingForm.notes,
+      }
+
       await push(ref(db, "bookings"), newBooking)
-      setIsSubmitting(false)
-      setShowSuccess(true)
+
+      toast({
+        title: "Đặt máy thành công",
+        description: "Thanh toán của bạn đã được gửi để xác nhận",
+      })
+
+      setStep("select")
+      setSelectedCamera(null)
+      setPaymentFile(null)
     } catch (err) {
-      console.error("Lỗi khi tạo booking:", err)
-      setIsSubmitting(false)
+      console.error("Lỗi khi xác nhận thanh toán:", err)
+      toast({
+        title: "Lỗi",
+        description: "Không thể hoàn tất thanh toán",
+        variant: "destructive",
+      })
+    } finally {
+      setIsPaymentSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    const paymentRef = ref(db, "settings")
+    onValue(paymentRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setPaymentInfo(snapshot.val())
+      }
+    })
+  }, [])
+
 
   const resetForm = () => {
     setSelectedCamera(null)
@@ -325,41 +386,6 @@ export function PublicBooking() {
     paymentSyntax: "",
     qrUrl: "",
   })
-
-  const handlePaymentConfirm = async () => {
-    if (!paymentFile || !selectedCamera) return
-    setIsPaymentSubmitting(true)
-    try {
-      await push(ref(db, "bookings"), {
-        ...bookingForm,
-        cameraName: selectedCamera.name,
-        startDate: format(bookingForm.startDate!, "yyyy-MM-dd"),
-        endDate: format(bookingForm.endDate!, "yyyy-MM-dd"),
-        totalAmount: calculateTotalAmount(),
-        paymentFileName: paymentFile.name,
-        status: "paid",
-        createdAt: new Date().toISOString(),
-      })
-      toast({ title: "Thành công", description: "Thanh toán được xác nhận", variant: "default" })
-      setPaymentFile(null)
-      setStep("select")
-    } catch (err) {
-      console.error(err)
-      toast({ title: "Lỗi", description: "Không thể xác nhận thanh toán", variant: "destructive" })
-    } finally {
-      setIsPaymentSubmitting(false)
-    }
-  }
-
-  useEffect(() => {
-    const paymentRef = ref(db, "paymentInfo")
-    onValue(paymentRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setPaymentInfo(snapshot.val())
-      }
-    })
-  }, [])
-
 
   return (
     <div className="space-y-6">
@@ -637,11 +663,7 @@ export function PublicBooking() {
                 required
                 pattern="^[0-9]{9,11}$"
               />
-
-
             </div>
-
-
             <div className="space-y-2">
               <Label htmlFor="email" className="block mb-1 text-sm font-medium">Email *</Label>
               <Input
@@ -676,7 +698,7 @@ export function PublicBooking() {
               <Button variant="outline" onClick={() => setStep("dates")}>
                 Quay lại
               </Button>
-              <Button onClick={() => setStep("confirm")} className="flex-1" disabled={!isFormValid()}>
+              <Button onClick={handleDetailsSubmit} className="flex-1" disabled={!isFormValid()}>
                 Xem lại đơn hàng
               </Button>
             </div>
@@ -689,10 +711,13 @@ export function PublicBooking() {
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Xác nhận đặt thuê</CardTitle>
-            <CardDescription>Vui lòng kiểm tra lại thông tin trước khi gửi yêu cầu</CardDescription>
+            <CardDescription>
+              Vui lòng kiểm tra lại thông tin trước khi thanh toán
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
+              {/* Camera info */}
               <div className="flex items-center gap-3 p-4 border rounded-lg">
                 <CameraIcon className="h-8 w-8 text-primary" />
                 <div>
@@ -703,6 +728,7 @@ export function PublicBooking() {
                 </div>
               </div>
 
+              {/* Booking info */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
@@ -710,7 +736,11 @@ export function PublicBooking() {
                     <div>
                       <p className="text-sm font-[Be_Vietnam_Pro]">Thời gian thuê</p>
                       <p className="text-sm text-muted-foreground">
-                        {bookingForm.startDate && format(bookingForm.startDate, "dd/MM/yyyy", { locale: vi })} - {bookingForm.endDate && format(bookingForm.endDate, "dd/MM/yyyy", { locale: vi })}
+                        {bookingForm.startDate &&
+                          format(bookingForm.startDate, "dd/MM/yyyy", { locale: vi })}{" "}
+                        -{" "}
+                        {bookingForm.endDate &&
+                          format(bookingForm.endDate, "dd/MM/yyyy", { locale: vi })}
                       </p>
                     </div>
                   </div>
@@ -719,7 +749,9 @@ export function PublicBooking() {
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-[Be_Vietnam_Pro]">Số ngày</p>
-                      <p className="text-sm text-muted-foreground">{calculateTotalDays()} ngày</p>
+                      <p className="text-sm text-muted-foreground">
+                        {calculateTotalDays()} ngày
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -729,7 +761,9 @@ export function PublicBooking() {
                     <User className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-[Be_Vietnam_Pro]">Khách hàng</p>
-                      <p className="text-sm text-muted-foreground">{bookingForm.customerName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {bookingForm.customerName}
+                      </p>
                     </div>
                   </div>
 
@@ -737,8 +771,12 @@ export function PublicBooking() {
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-[Be_Vietnam_Pro]">Liên hệ</p>
-                      <p className="text-sm text-muted-foreground">{bookingForm.customerEmail}</p>
-                      <p className="text-sm text-muted-foreground">{bookingForm.customerPhone}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {bookingForm.customerEmail}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {bookingForm.customerPhone}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -747,60 +785,140 @@ export function PublicBooking() {
               {bookingForm.notes && (
                 <div className="p-4 bg-muted/50 rounded-lg">
                   <p className="text-sm font-[Be_Vietnam_Pro] mb-1">Ghi chú:</p>
-                  <p className="text-sm text-muted-foreground">{bookingForm.notes}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {bookingForm.notes}
+                  </p>
                 </div>
               )}
 
+              {/* Tổng cộng */}
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="pt-4">
                   <div className="space-y-2">
                     <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
                       <span className="font-[Be_Vietnam_Pro]">Tổng cộng:</span>
-                      <span className="text-primary">{calculateTotalAmount().toLocaleString("vi-VN")}đ</span>
+                      <span className="text-primary">
+                        {calculateTotalAmount().toLocaleString("vi-VN")}đ
+                      </span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="flex gap-2">
+            {/* Action buttons */}
+            <div className="flex gap-2 pt-2">
               <Button variant="outline" onClick={() => setStep("details")}>
                 Quay lại
               </Button>
-              <Button onClick={handleSubmit} className="flex-1" disabled={isSubmitting}>
-                {isSubmitting ? "Đang gửi..." : "Gửi yêu cầu đặt thuê"}
+              <Button onClick={() => setStep("payment")} className="flex-1">
+                Xác nhận & Thanh toán
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Step 5: Payment Instructions */}
+
+      {/* ✅ Step 5: Payment Instructions */}
       {step === "payment" && selectedCamera && (
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Thanh toán</CardTitle>
-            <CardDescription>Quét QR và chuyển khoản theo thông tin dưới đây</CardDescription>
+            <CardDescription>
+              Quét mã QR hoặc chuyển khoản theo thông tin dưới đây
+            </CardDescription>
           </CardHeader>
+
           <CardContent className="space-y-6">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-200 rounded-xl p-6 shadow-sm space-y-5">
-              <h4 className="text-lg font-semibold text-blue-900 flex items-center gap-2">💳 Thông tin chuyển khoản</h4>
-              <div><Label className="text-blue-900 font-medium">Ngân hàng</Label><p>{paymentInfo.bankName}</p></div>
-              <div><Label className="text-blue-900 font-medium">Số tài khoản</Label><p>{paymentInfo.accountNumber}</p></div>
-              <div><Label className="text-blue-900 font-medium">Chủ tài khoản</Label><p>{paymentInfo.accountHolder}</p></div>
-              <div><Label className="text-blue-900 font-medium">Cú pháp chuyển khoản</Label><p>{paymentInfo.paymentSyntax}</p></div>
+            <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-4 text-center shadow-sm">
+              <p className="text-sm text-emerald-800 font-medium">
+                Tổng tiền cần thanh toán
+              </p>
+              <p className="text-2xl font-bold text-emerald-700 mt-1">
+                {calculateTotalAmount().toLocaleString("vi-VN")} ₫
+              </p>
             </div>
-            {paymentInfo.qrUrl && <div className="text-center"><img src={paymentInfo.qrUrl} alt="QR Code" className="w-48 mx-auto" /></div>}
+
+            {/* --- Payment info section --- */}
+            {paymentInfo ? (
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-200 rounded-xl p-6 shadow-sm space-y-5">
+                <h4 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+                  💳 Thông tin chuyển khoản
+                </h4>
+
+                <div>
+                  <Label className="text-blue-900 font-medium">Ngân hàng</Label>
+                  <p>{paymentInfo.bankName}</p>
+                </div>
+
+                <div>
+                  <Label className="text-blue-900 font-medium">Số tài khoản</Label>
+                  <p className="font-semibold text-lg tracking-wide">{paymentInfo.accountNumber}</p>
+                </div>
+
+                <div>
+                  <Label className="text-blue-900 font-medium">Chủ tài khoản</Label>
+                  <p>{paymentInfo.accountHolder}</p>
+                </div>
+
+                <div>
+                  <Label className="text-blue-900 font-medium">Cú pháp chuyển khoản</Label>
+                  <p className="italic text-sm text-blue-800">
+                    {paymentInfo.paymentSyntax
+                      ?.replace("[Tên]", bookingForm.customerName || "Tên khách hàng")
+                      ?.replace(
+                        "[Ngày thuê]",
+                        bookingForm.startDate
+                          ? format(bookingForm.startDate, "dd/MM/yyyy")
+                          : "..."
+                      )}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">
+                Đang tải thông tin thanh toán...
+              </p>
+            )}
+
+            {paymentInfo?.qrUrl ? (
+              <div className="text-center">
+                <img
+                  src={paymentInfo.qrUrl}
+                  alt="QR Code"
+                  className="w-48 h-48 mx-auto rounded-lg shadow-sm border"
+                />
+                <p className="mt-2 text-sm text-muted-foreground">Quét mã để thanh toán nhanh</p>
+              </div>
+            ) : (
+              <div className="text-center text-sm text-muted-foreground italic">
+                (Chưa có mã QR thanh toán)
+              </div>
+            )}
+
+            {/* --- Upload proof ---
             <div className="space-y-2">
-              <Label>Upload hóa đơn (Ảnh/ PDF)</Label>
-              <Input type="file" accept="image/*,application/pdf" onChange={(e) => setPaymentFile(e.target.files?.[0] || null)} />
-            </div>
-            <Button onClick={handlePaymentConfirm} disabled={!paymentFile || isPaymentSubmitting}>
+              <Label>Upload hóa đơn (Ảnh hoặc PDF)</Label>
+              <Input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => setPaymentFile(e.target.files?.[0] || null)}
+              />
+            </div> */}
+
+            {/* --- Confirm button --- */}
+            <Button
+              onClick={handlePaymentConfirm}
+              // disabled={!paymentFile || isPaymentSubmitting}
+              className="w-full"
+            >
               {isPaymentSubmitting ? "Đang xử lý..." : "Xác nhận đã thanh toán"}
             </Button>
           </CardContent>
         </Card>
       )}
+
 
 
       {/* Success Dialog */}
@@ -843,3 +961,7 @@ export function PublicBooking() {
     </div>
   )
 }
+function get(arg0: DatabaseReference) {
+  throw new Error("Function not implemented.")
+}
+
