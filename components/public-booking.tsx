@@ -583,9 +583,3 @@ export function PublicBooking() {
     </div>
   )
 }
-<<<<<<< Updated upstream
-=======
-function get(arg0: DatabaseReference) {
-  throw new Error("Function not implemented.")
-}
->>>>>>> Stashed changes
