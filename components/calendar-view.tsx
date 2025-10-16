@@ -18,7 +18,7 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
-  Calendar as CalendarIcon,
+  Calendar,
   Clock,
   User,
   Camera,
@@ -568,6 +568,7 @@ export function CalendarView() {
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <div className="text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
                     <p>
                       {format(normalizeToDate(selectedBooking.startDate), "dd/MM/yyyy")} - {format(normalizeToDate(selectedBooking.endDate), "dd/MM/yyyy")}
                     </p>

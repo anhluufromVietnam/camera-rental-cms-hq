@@ -46,6 +46,8 @@ interface Booking {
   cameraName: string
   startDate: string
   endDate: string
+  startTime?: string | null
+  endTime?: string | null
   totalDays: number
   dailyRate: number
   totalAmount: number
@@ -210,7 +212,7 @@ export function OrderManagement() {
       await push(logRef, {
         oldStatus: orig.status,
         newStatus: status,
-        changedBy: "admin", 
+        changedBy: "admin",
         changedAt: new Date().toISOString(),
         notes: notes || null,
       })
@@ -562,8 +564,11 @@ export function OrderManagement() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Chi tiết đơn hàng #{selectedBooking?.id}
+              Chi tiết đơn hàng
             </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Mã vận đơn: {selectedBooking?.id}
+            </DialogDescription>
           </DialogHeader>
 
           {selectedBooking && (
@@ -610,6 +615,18 @@ export function OrderManagement() {
                           {new Date(selectedBooking.startDate).toLocaleDateString("vi-VN")} -{" "}
                           {new Date(selectedBooking.endDate).toLocaleDateString("vi-VN")}
                         </span>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground italic">
+                          Giờ nhận:{" "}
+                          <span className="font-medium text-foreground">
+                            {selectedBooking.startTime || "--:--"}
+                          </span>{" "}
+                          Giờ trả:{" "}
+                          <span className="font-medium text-foreground">
+                            {selectedBooking.endTime || "--:--"}
+                          </span>
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />

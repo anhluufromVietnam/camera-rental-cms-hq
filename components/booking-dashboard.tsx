@@ -32,6 +32,8 @@ interface Booking {
   cameraName: string
   startDate: string
   endDate: string
+  startTime: string
+  endTime: string
   totalDays: number
   dailyRate: number
   totalAmount: number
@@ -320,7 +322,11 @@ export function BookingDashboard() {
                     <p className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
                       {new Date(booking.startDate).toLocaleDateString("vi-VN")} →{" "}
-                      {new Date(booking.endDate).toLocaleDateString("vi-VN")}
+                      {new Date(booking.endDate).toLocaleDateString("vi-VN")}             
+                    </p>
+                     <p className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      Giờ nhận: {booking.startTime} - Giờ trả: {booking.endTime}
                     </p>
                     <p>
                       <span className="font-medium">Số ngày:</span> {booking.totalDays || 0} ngày
