@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { db } from "@/firebase.config"
-import { ref, onValue, push, update, remove, } from "firebase/database"
+import { ref, onValue, push, update, remove } from "firebase/database"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,8 +30,10 @@ interface Camera {
   model: string
   category: string
   dailyRate: number
-  quantity: number
-  available: number
+  ondayRate: number
+  fullDayRate: number
+  threeDaysRate: number
+  fiveDaysRate: number
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
@@ -69,18 +71,25 @@ export function CameraManagement() {
   const [editingCamera, setEditingCamera] = useState<Camera | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
+  const [selectedRates, setSelectedRates] = useState<Record<string, string>>({})
 
-  // Load cameras from localStorage on component mount
-  useEffect(() => {
-    const cached = localStorage.getItem("cameras")
-    if (cached) {
-      try {
-        setCameras(JSON.parse(cached))
-      } catch (e) {
-        console.error("Lỗi parse localStorage:", e)
-      }
+  // Price selection logic
+  const getRatePrice = (camera: Camera, rateType: string) => {
+    switch (rateType) {
+      case "ondayRate":        // chọn "Trong ngày"
+        return camera.ondayRate || 0;
+      case "fullDayRate":      // 1 ngày trở lên
+        return camera.fullDayRate || camera.ondayRate || 0;
+      case "threeDaysRate":    // 3 ngày trở lên
+        return camera.threeDaysRate || camera.ondayRate || 0;
+      case "fiveDaysRate":     // 5 ngày trở lên
+        return camera.fiveDaysRate || camera.ondayRate || 0;
+      default:
+        return camera.ondayRate || 0;
     }
-
+  }
+  // Load cameras from Firebase
+  useEffect(() => {
     const camerasRef = ref(db, "cameras")
     const unsubscribe = onValue(camerasRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -98,21 +107,7 @@ export function CameraManagement() {
     return () => unsubscribe()
   }, [])
 
-  // Save cameras to localStorage whenever cameras state changes
-  useEffect(() => {
-    localStorage.setItem("cameras", JSON.stringify(cameras))
-  }, [cameras])
-
   const handleAddCamera = async (cameraData: Omit<Camera, "id">) => {
-    if (cameraData.available > cameraData.quantity) {
-      toast({
-        title: "Lỗi",
-        description: "Số lượng có sẵn không được lớn hơn tổng số lượng",
-        variant: "destructive",
-      })
-      return
-    }
-
     try {
       await push(ref(db, "cameras"), cameraData)
       setIsAddDialogOpen(false)
@@ -129,16 +124,6 @@ export function CameraManagement() {
 
   const handleEditCamera = async (cameraData: Omit<Camera, "id">) => {
     if (!editingCamera) return
-
-    if (cameraData.available > cameraData.quantity) {
-      toast({
-        title: "Lỗi",
-        description: "Số lượng có sẵn không được lớn hơn tổng số lượng",
-        variant: "destructive",
-      })
-      return
-    }
-
     try {
       await update(ref(db, `cameras/${editingCamera.id}`), cameraData)
       setEditingCamera(null)
@@ -241,17 +226,30 @@ export function CameraManagement() {
                   <Label className="text-muted-foreground">Loại</Label>
                   <p className="font-medium">{camera.category}</p>
                 </div>
+
+                {/* --- Phần giá thuê refactor --- */}
                 <div>
-                  <Label className="text-muted-foreground">Giá thuê/ngày</Label>
-                  <p className="font-medium">{camera.dailyRate.toLocaleString("vi-VN")}đ</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Tổng số lượng</Label>
-                  <p className="font-medium">{camera.quantity}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Có sẵn</Label>
-                  <p className="font-medium text-green-600">{camera.available}</p>
+                  <Label className="text-muted-foreground">Giá thuê</Label>
+                  <Select
+                    defaultValue="ondayRate"
+                    onValueChange={(value) => {
+                      setSelectedRates((prev) => ({ ...prev, [camera.id]: value }))
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn loại giá" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ondayRate">Trong ngày</SelectItem>
+                      <SelectItem value="fullDayRate">1 Ngày trở lên</SelectItem>
+                      <SelectItem value="threeDaysRate">3 ngày trở lên</SelectItem>
+                      <SelectItem value="fiveDaysRate">5 Ngày trở lên</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <p className="font-medium mt-2">
+                    {getRatePrice(camera, selectedRates[camera.id] || "dailyRate").toLocaleString("vi-VN")}đ
+                  </p>
                 </div>
               </div>
 
@@ -294,6 +292,7 @@ export function CameraManagement() {
                 </Button>
               </div>
             </CardContent>
+
           </Card>
         ))}
       </div>
@@ -326,8 +325,10 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
     model: camera?.model || "",
     category: camera?.category || "",
     dailyRate: camera?.dailyRate || 0,
-    quantity: camera?.quantity || 1,
-    available: camera?.available || 1,
+    ondayRate: camera?.ondayRate || 0,
+    fullDayRate: camera?.fullDayRate || 0,
+    threeDaysRate: camera?.threeDaysRate || 0,
+    fiveDaysRate: camera?.fiveDaysRate || 0,
     description: camera?.description || "",
     specifications: camera?.specifications || "",
     status: camera?.status || ("active" as const),
@@ -399,40 +400,48 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="dailyRate">Giá thuê/ngày (VNĐ)</Label>
-            <Input
-              id="dailyRate"
-              type="number"
-              value={formData.dailyRate}
-              onChange={(e) => setFormData((prev) => ({ ...prev, dailyRate: Number.parseInt(e.target.value) || 0 }))}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="quantity">Tổng số lượng</Label>
-            <Input
-              id="quantity"
-              type="number"
-              min="1"
-              value={formData.quantity}
-              onChange={(e) => setFormData((prev) => ({ ...prev, quantity: Number.parseInt(e.target.value) || 1 }))}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="available">Có sẵn</Label>
-            <Input
-              id="available"
-              type="number"
-              min="0"
-              max={formData.quantity}
-              value={formData.available}
-              onChange={(e) => setFormData((prev) => ({ ...prev, available: Number.parseInt(e.target.value) || 0 }))}
-              required
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="rentalCost">Giá thuê/ngày (VNĐ)</Label>
+          <Label htmlFor="ondayRate">Giá thuê 6h</Label>
+          <Input
+            id="ondayRate"
+            type="number"
+            value={formData.ondayRate}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, ondayRate: Number.parseInt(e.target.value) || 0 }))
+            }
+            required
+          />
+          <Label htmlFor="fullDayRate">Giá thuê 1 ngày trở lên</Label>
+          <Input
+            id="fulldayRate"
+            type="number"
+            value={formData.fullDayRate}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, fullDayRate: Number.parseInt(e.target.value) || 0 }))
+            }
+            required
+          />
+          <Label htmlFor="threeDaysRate">Giá thuê 3 ngày trở lên</Label>
+          <Input
+            id="threeDaysRate"
+            type="number"
+            value={formData.threeDaysRate}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, threeDaysRate: Number.parseInt(e.target.value) || 0 }))
+            }
+            required
+          />
+          <Label htmlFor="fiveDaysRate">Giá thuê 5 ngày trở lên</Label>
+          <Input
+            id="fiveDaysRate"
+            type="number"
+            value={formData.fiveDaysRate}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, fiveDaysRate: Number.parseInt(e.target.value) || 0 }))
+            }
+            required
+          />
         </div>
 
         <div className="space-y-2">
