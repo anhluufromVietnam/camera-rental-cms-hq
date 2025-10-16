@@ -255,25 +255,25 @@ export function PublicBooking() {
     )
   }
 
- useEffect(() => {
-  const fetchPaymentInfo = async () => {
-    try {
-      const snapshot = await get(ref(db, "settings"))
-      console.log("✅ Snapshot exists:", snapshot.exists())
-      console.log("📦 Snapshot value:", snapshot.val())
+  useEffect(() => {
+    const fetchPaymentInfo = async () => {
+      try {
+        const snapshot = await get(ref(db, "settings"))
+        console.log("✅ Snapshot exists:", snapshot.exists())
+        console.log("📦 Snapshot value:", snapshot.val())
 
-      if (snapshot.exists()) {
-        setPaymentInfo(snapshot.val() as PaymentInfo)
-      } else {
-        console.warn("⚠️ Không tìm thấy dữ liệu trong /settings")
+        if (snapshot.exists()) {
+          setPaymentInfo(snapshot.val() as PaymentInfo)
+        } else {
+          console.warn("⚠️ Không tìm thấy dữ liệu trong /settings")
+        }
+      } catch (error) {
+        console.error("❌ Lỗi khi lấy payment info:", error)
       }
-    } catch (error) {
-      console.error("❌ Lỗi khi lấy payment info:", error)
     }
-  }
 
-  fetchPaymentInfo()
-}, [])
+    fetchPaymentInfo()
+  }, [])
 
 
   const stepsConfig = [
@@ -767,67 +767,68 @@ export function PublicBooking() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-[Be_Vietnam_Pro]">Số ngày</p>
-                        <p className="text-sm text-muted-foreground">
-                          {calculateTotalDays()} ngày
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-[Be_Vietnam_Pro]">Số ngày</p>
+                          <p className="text-sm text-muted-foreground">
+                            {calculateTotalDays()} ngày
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
                   {/* Khách hàng */}
+                    {/* Khách hàng */}
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-[Be_Vietnam_Pro]">Khách hàng</p>
-                        <p className="text-sm text-muted-foreground">
-                          {bookingForm.customerName}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-[Be_Vietnam_Pro]">Khách hàng</p>
+                          <p className="text-sm text-muted-foreground">
+                            {bookingForm.customerName}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-[Be_Vietnam_Pro]">Liên hệ</p>
-                        <p className="text-sm text-muted-foreground">
-                          {bookingForm.customerEmail}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {bookingForm.customerPhone}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-[Be_Vietnam_Pro]">Liên hệ</p>
+                          <p className="text-sm text-muted-foreground">
+                            {bookingForm.customerEmail}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {bookingForm.customerPhone}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {bookingForm.notes && (
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-sm font-[Be_Vietnam_Pro] mb-1">Ghi chú:</p>
+                      <p className="text-sm text-muted-foreground">
+                        {bookingForm.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Tổng cộng */}
+                  <Card className="bg-primary/5 border-primary/20">
+                    <CardContent className="pt-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
+                          <span className="font-[Be_Vietnam_Pro]">Tổng cộng:</span>
+                          <span className="text-primary">
+                            {calculateTotalAmount().toLocaleString("vi-VN")}đ
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-
-                {bookingForm.notes && (
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm font-[Be_Vietnam_Pro] mb-1">Ghi chú:</p>
-                    <p className="text-sm text-muted-foreground">
-                      {bookingForm.notes}
-                    </p>
-                  </div>
-                )}
-
-                {/* Tổng cộng */}
-                <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="pt-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
-                        <span className="font-[Be_Vietnam_Pro]">Tổng cộng:</span>
-                        <span className="text-primary">
-                          {calculateTotalAmount().toLocaleString("vi-VN")}đ
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
 
               {/* RIGHT: Payment info */}
               <div className="flex flex-col items-center justify-center space-y-4 border-l pl-6 text-center">
