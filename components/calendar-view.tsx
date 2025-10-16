@@ -45,6 +45,8 @@ interface Booking {
   cameraName: string
   startDate: string // "YYYY-MM-DD"
   endDate: string // "YYYY-MM-DD"
+  startTime?: string
+  endTime?: string
   totalDays?: number
   dailyRate?: number
   totalAmount?: number
@@ -538,6 +540,18 @@ export function CalendarView() {
                       {format(normalizeToDate(selectedBooking.startDate), "dd/MM/yyyy")} - {format(normalizeToDate(selectedBooking.endDate), "dd/MM/yyyy")}
                     </p>
                     <p className="text-muted-foreground">{differenceInDays(normalizeToDate(selectedBooking.endDate), normalizeToDate(selectedBooking.startDate)) + 1} ngày</p>
+                    {(selectedBooking.startTime || selectedBooking.endTime) && (
+                      <p className="text-muted-foreground italic">
+                        Giờ nhận:{" "}
+                        <span className="font-medium text-foreground">
+                          {selectedBooking.startTime || "--:--"}
+                        </span>{" "}
+                        - Giờ trả:{" "}
+                        <span className="font-medium text-foreground">
+                          {selectedBooking.endTime || "--:--"}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
