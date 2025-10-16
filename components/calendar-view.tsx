@@ -339,6 +339,12 @@ export function CalendarView() {
   // day view: show timeline for selectedDay (default to currentDate)
   const activeDay = selectedDay || new Date()
 
+  const now = new Date()
+  const currentHour = now.getHours()
+  const displayHours = Array.from({ length: 5 }) // 5 slots: -2, -1, 0, +1, +2
+    .map((_, i) => currentHour - 2 + i)
+    .filter(h => h >= 0 && h <= 23) // Giữ trong 0-23
+
   return (
     <div className="space-y-6">
       <div>
@@ -418,8 +424,22 @@ export function CalendarView() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setSelectedDay((d) => { if (!d) return new Date(); const c = new Date(d); c.setDate(c.getDate() - 1); return c }) }}>Prev day</Button>
-                <Button variant="outline" size="sm" onClick={() => { setSelectedDay((d) => { if (!d) return new Date(); const c = new Date(d); c.setDate(c.getDate() + 1); return c }) }}>Next day</Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setSelectedDay((d) => {
+                    if (!d) return new Date();
+                    const c = new Date(d);
+                    c.setDate(c.getDate() - 1);
+                    return c
+                  })
+                }}>Prev day</Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setSelectedDay((d) => {
+                    if (!d) return new Date();
+                    const c = new Date(d);
+                    c.setDate(c.getDate() + 1);
+                    return c
+                  })
+                }}>Next day</Button>
                 <Button variant="outline" onClick={() => { setSelectedDay(new Date()) }}>Today</Button>
               </div>
             </div>
@@ -430,16 +450,17 @@ export function CalendarView() {
             <div className="grid grid-cols-[80px_1fr] gap-4">
               {/* Hours column */}
               <div className="space-y-1">
-                {hours.map((h) => (
+                {displayHours.map((h) => (
                   <div key={h} className="text-xs text-muted-foreground h-10 flex items-center justify-end pr-2">
                     {String(h).padStart(2, "0")}:00
+                    {h === currentHour && <span className="ml-1 text-primary font-bold">●</span>}
                   </div>
                 ))}
               </div>
 
               {/* Events column */}
               <div className="space-y-1 relative">
-                {hours.map((h) => {
+                {displayHours.map((h) => {
                   const events = getEventsForDay(activeDay).filter((ev) => ev.time ? ev.time.getHours() === h : false)
                   return (
                     <div key={h} className="h-10 border-b border-muted/50 flex items-center gap-2 px-2">
