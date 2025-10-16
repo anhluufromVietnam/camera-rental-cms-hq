@@ -221,6 +221,13 @@ export function CalendarView() {
     colorClass: string
   }
 
+  // ✅ THÊM TRƯỚC RETURN
+  const now = new Date()
+  const currentHour = now.getHours()
+  const displayHours = Array.from({ length: 5 }) // 5 slots: -2, -1, 0, +1, +2
+    .map((_, i) => currentHour - 2 + i)
+    .filter(h => h >= 0 && h <= 23) // Giữ trong 0-23
+
   const getEventsForDay = (day: Date): EventItem[] => {
     const dayStart = normalizeToDate(day)
     const dayEnd = new Date(dayStart); dayEnd.setHours(23, 59, 59, 999)
@@ -308,6 +315,7 @@ export function CalendarView() {
         })
       }
     })
+
 
     // sort events: reserved (all-day) first, then by time
     events.sort((a, b) => {
@@ -416,38 +424,58 @@ export function CalendarView() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setSelectedDay((d) => { if (!d) return new Date(); const c = new Date(d); c.setDate(c.getDate() - 1); return c }) }}>Prev day</Button>
-                <Button variant="outline" size="sm" onClick={() => { setSelectedDay((d) => { if (!d) return new Date(); const c = new Date(d); c.setDate(c.getDate() + 1); return c }) }}>Next day</Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setSelectedDay((d) => {
+                    if (!d) return new Date();
+                    const c = new Date(d);
+                    c.setDate(c.getDate() - 1);
+                    return c
+                  })
+                }}>Prev day</Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setSelectedDay((d) => {
+                    if (!d) return new Date();
+                    const c = new Date(d);
+                    c.setDate(c.getDate() + 1);
+                    return c
+                  })
+                }}>Next day</Button>
                 <Button variant="outline" onClick={() => { setSelectedDay(new Date()) }}>Today</Button>
               </div>
             </div>
           </CardHeader>
 
           <CardContent>
-            {/* Two column: hours + events */}
+            {/* ✅ THAY ĐỔI: Dynamic hours ±2h từ giờ hiện tại */}
             <div className="grid grid-cols-[80px_1fr] gap-4">
-              {/* Hours column */}
+              {/* Hours column - CHỈ HIỂN THỊ ±2 GIỜ */}
               <div className="space-y-1">
-                {hours.map((h) => (
+                {displayHours.map((h) => (
                   <div key={h} className="text-xs text-muted-foreground h-10 flex items-center justify-end pr-2">
                     {String(h).padStart(2, "0")}:00
+                    {h === currentHour && <span className="ml-1 text-primary font-bold">●</span>}
                   </div>
                 ))}
               </div>
 
-              {/* Events column */}
+              {/* Events column - CHỈ HIỂN THỊ ±2 GIỜ */}
               <div className="space-y-1 relative">
-                {hours.map((h) => {
-                  const events = getEventsForDay(activeDay).filter((ev) => ev.time ? ev.time.getHours() === h : false)
+                {displayHours.map((h) => {
+                  const events = getEventsForDay(activeDay).filter((ev) =>
+                    ev.time ? ev.time.getHours() === h : false
+                  )
                   return (
                     <div key={h} className="h-10 border-b border-muted/50 flex items-center gap-2 px-2">
                       {/* events for this hour */}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         {events.map((ev) => (
                           <div
                             key={ev.id}
                             onClick={() => setSelectedBooking(ev.booking)}
-                            className={cn("px-2 py-1 rounded text-white text-sm cursor-pointer shadow", ev.colorClass)}
+                            className={cn(
+                              "px-2 py-1 rounded text-white text-xs cursor-pointer shadow whitespace-nowrap",
+                              ev.colorClass
+                            )}
                             title={`${ev.title} • ${ev.time ? format(ev.time, "HH:mm") : "All day"}`}
                           >
                             <div className="font-medium">{ev.booking.cameraName}</div>
@@ -461,13 +489,15 @@ export function CalendarView() {
                   )
                 })}
 
-                {/* show all-day reserved events (those without time) at top */}
+                {/* All-day reserved events (top right) */}
                 <div className="absolute top-0 right-0 mr-4 mt-2">
-                  {getEventsForDay(activeDay).filter(e => !e.time || e.type === "reserved").map((ev) => (
-                    <div key={ev.id} className={cn("px-3 py-1 rounded mb-2 text-white text-sm", ev.colorClass)}>
-                      {ev.title}
-                    </div>
-                  ))}
+                  {getEventsForDay(activeDay)
+                    .filter(e => !e.time || e.type === "reserved")
+                    .map((ev) => (
+                      <div key={ev.id} className={cn("px-3 py-1 rounded mb-2 text-white text-xs", ev.colorClass)}>
+                        {ev.title}
+                      </div>
+                    ))}
                 </div>
               </div>
             </div>
@@ -476,7 +506,9 @@ export function CalendarView() {
             <div className="mt-4">
               <h3 className="text-lg font-semibold mb-2">Sự kiện trong ngày</h3>
               <div className="space-y-2">
-                {getEventsForDay(activeDay).length === 0 && <div className="text-sm text-muted-foreground">Không có sự kiện hôm nay.</div>}
+                {getEventsForDay(activeDay).length === 0 && (
+                  <div className="text-sm text-muted-foreground">Không có sự kiện hôm nay.</div>
+                )}
                 {getEventsForDay(activeDay).map((ev) => (
                   <div key={ev.id} className="p-3 border rounded flex justify-between items-center">
                     <div>
