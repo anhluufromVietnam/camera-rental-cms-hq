@@ -90,6 +90,14 @@ const STATUS_CONFIG = {
     icon: CheckCircle,
     nextStatus: null,
   },
+  overtime: {
+    label: "Quá hạn",
+    color: "bg-orange-500",
+    textColor: "text-orange-700",
+    bgColor: "bg-orange-50",
+    icon: Clock,
+    nextStatus: null,
+  },
   cancelled: {
     label: "Đã hủy",
     color: "bg-red-500",
@@ -686,6 +694,7 @@ export function OrderManagement() {
                   <SelectItem value="confirmed">Đã xác nhận</SelectItem>
                   <SelectItem value="active">Đang thuê</SelectItem>
                   <SelectItem value="completed">Hoàn thành</SelectItem>
+                  <SelectItem value="overtime">Quá hạn</SelectItem>
                   <SelectItem value="cancelled">Đã hủy</SelectItem>
                 </SelectContent>
               </Select>

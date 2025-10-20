@@ -101,6 +101,7 @@ const normalizeToDate = (d: string | Date) => {
   date.setHours(0, 0, 0, 0)
   return date
 }
+
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
@@ -126,18 +127,49 @@ export function CalendarView() {
       const list: Booking[] = Object.entries(data).map(([id, v]) => {
         const b = { id, ...(v as any) } as Booking
         // normalize logs object to array
-        const logsObj = (v && (v as any).statusChangeLogs) || null
+        const logsObj = (v && (v as any).statusChangeLogs) || null;
         if (logsObj && typeof logsObj === "object") {
-          b.__logs = Object.entries(logsObj).map(([lid, lv]: [string, any]) => ({
-            id: lid,
-            status: lv.status,
-            timestamp: lv.timestamp,
-          }))
-          // sort by timestamp asc
-          b.__logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+          b.__logs = Object.entries(logsObj).map(([lid, lv]: [string, any]) => {
+            let dateVal: Date | null = null;
+
+            if (!lv?.timestamp) {
+              dateVal = null;
+            } else if (typeof lv.timestamp === "object" && "seconds" in lv.timestamp) {
+              // Firestore Timestamp { seconds, nanoseconds }
+              dateVal = new Date(lv.timestamp.seconds * 1000);
+            } else if (typeof lv.timestamp === "number") {
+              // Epoch milliseconds
+              // Nếu giá trị nhỏ hơn 10^12 thì là giây => nhân 1000
+              dateVal = new Date(
+                lv.timestamp < 1e12 ? lv.timestamp * 1000 : lv.timestamp
+              );
+            } else if (typeof lv.timestamp === "string") {
+              // ISO string hoặc numeric string
+              const parsedNum = Number(lv.timestamp);
+              if (!isNaN(parsedNum)) {
+                dateVal = new Date(parsedNum < 1e12 ? parsedNum * 1000 : parsedNum);
+              } else {
+                const parsed = Date.parse(lv.timestamp);
+                dateVal = isNaN(parsed) ? null : new Date(parsed);
+              }
+            }
+
+            return {
+              id: lid,
+              status: lv.status,
+              timestamp: dateVal ? dateVal.toISOString() : new Date(0).toISOString(),
+            };
+          });
+
+          // sort by time ascending
+          b.__logs.sort(
+            (a, b) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
         } else {
-          b.__logs = []
+          b.__logs = [];
         }
+
         return b
       })
       setBookings(list)
@@ -606,25 +638,29 @@ export function CalendarView() {
                   </div>
                 )}
 
-                {/* statusChangeLogs (if any) */}
                 {selectedBooking.__logs?.length ? (
                   <div className="border-t pt-3">
                     <h4 className="font-medium mb-2">Lịch sử trạng thái</h4>
                     <div className="space-y-2 text-sm">
-                      {selectedBooking.__logs!.map((l) => (
-                        <div key={l.id ?? l.timestamp} className="flex justify-between">
-                          <div>{l.status}</div>
-                          <div className="text-muted-foreground">
-                            {new Date(l.timestamp).toLocaleString("vi-VN", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                      {selectedBooking.__logs!.map((l) => {
+                        const dateValue = new Date(l.timestamp);
+                        return (
+                          <div key={l.id ?? String(l.timestamp)} className="flex justify-between">
+                            <div>{l.status}</div>
+                            <div className="text-muted-foreground">
+                              {isNaN(dateValue.getTime())
+                                ? "Không xác định"
+                                : dateValue.toLocaleString("vi-VN", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}

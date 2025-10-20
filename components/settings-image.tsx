@@ -52,7 +52,6 @@ export function SettingsImage() {
   const [accountHolder, setAccountHolder] = useState("")
   const [paymentSyntax, setPaymentSyntax] = useState("")
 
-  // load settings from Realtime DB
   const fetchSettings = async () => {
     try {
       const settingsRef = ref(db, "settings")
@@ -84,7 +83,6 @@ export function SettingsImage() {
     setPreviewUrl(URL.createObjectURL(file))
   }
 
-  // save settings (QR sẽ lưu local dưới dạng base64)
   const handleSaveSettings = async () => {
     if (!bankName || !accountNumber || !accountHolder || !paymentSyntax) {
       console.warn("Missing fields, cannot save")
@@ -95,7 +93,6 @@ export function SettingsImage() {
     try {
       let finalQrUrl = qrUrl
 
-      // nếu chọn ảnh mới thì chuyển sang base64 và lưu local
       if (qrFile) {
         const compressedBlob = await resizeImage(qrFile)
         const base64 = await blobToBase64(compressedBlob)
@@ -104,7 +101,6 @@ export function SettingsImage() {
         setQrUrl(finalQrUrl)
       }
 
-      // lưu dữ liệu vào firebase realtime database
       const settingsRef = ref(db, "settings")
       await set(settingsRef, {
         qrUrl: finalQrUrl,
@@ -114,12 +110,10 @@ export function SettingsImage() {
         paymentSyntax,
       })
 
-      // reset
       setQrFile(null)
       setPreviewUrl("")
       await fetchSettings()
 
-      // hiển thị dialog thành công
       setSuccessDialog(true)
     } catch (err) {
       console.error("Error saving settings:", err)
@@ -148,45 +142,43 @@ export function SettingsImage() {
   return (
     <>
       <div className="max-w-2xl mx-auto font-[Be_Vietnam_Pro] text-[15px] text-foreground font-semibold">
-        <Card className="shadow-lg border border-border/60 rounded-2xl">
-          <CardHeader className="border-b pb-3">
+        <Card className="max-w-xl mx-auto border border-border/60 shadow-md rounded-2xl p-6 space-y-6 font-[Be_Vietnam_Pro]">
+          <CardHeader className="pb-0">
             <CardTitle className="text-xl font-bold flex items-center gap-2">
               ⚙️ Cài đặt thanh toán
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="space-y-6 pt-6">
-            {/* QR Upload */}
-            <div className="space-y-3">
-              <Label className="font-medium text-base">Ảnh mã QR thanh toán</Label>
-
-              <div className="relative w-48 h-48 border-2 border-dashed rounded-xl overflow-hidden bg-white flex items-center justify-center shadow-sm">
+          <CardContent className="space-y-6 pt-2">
+            {/* QR Image */}
+            <div className="space-y-2">
+              <Label className="font-medium">Ảnh mã QR thanh toán</Label>
+              <div className="w-44 h-44 border rounded-xl overflow-hidden bg-white flex items-center justify-center shadow-sm mx-auto">
                 {previewUrl || qrUrl ? (
                   <img
                     src={previewUrl || qrUrl}
-                    alt="QR Code"
-                    className="object-contain w-full h-full p-3"
+                    alt="QR"
+                    className="object-contain w-full h-full p-2"
                   />
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Chưa có ảnh QR</p>
+                  <p className="text-sm text-muted-foreground italic">Chưa có ảnh</p>
                 )}
               </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <Input
+              <div className="flex justify-center">
+                <input
                   id="file-upload"
                   type="file"
                   accept="image/*"
-                  onChange={handleSelectFile}
                   className="hidden"
+                  onChange={handleSelectFile}
                 />
                 <Button
-                  type="button"
                   onClick={() => document.getElementById("file-upload")?.click()}
-                  className="flex items-center gap-2 font-semibold"
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
                 >
-                  <Upload className="h-4 w-4" />
-                  Chọn ảnh QR
+                  <Upload className="h-4 w-4" /> Chọn ảnh QR
                 </Button>
               </div>
             </div>
@@ -265,7 +257,7 @@ export function SettingsImage() {
               Lưu thành công!
             </DialogTitle>
             <DialogDescription className="text-gray-600 pt-2">
-              Cài đặt thanh toán của bạn đã được lưu lại thành công 
+              Cài đặt thanh toán của bạn đã được lưu lại thành công
             </DialogDescription>
           </DialogHeader>
 
@@ -273,7 +265,7 @@ export function SettingsImage() {
             <Button
               onClick={() => setSuccessDialog(false)}
               className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold"
-              >
+            >
               Đóng
             </Button>
           </DialogFooter>
