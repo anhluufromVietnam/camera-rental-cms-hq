@@ -83,6 +83,7 @@ export function PublicBooking() {
   const [_, setPhoneError] = useState<string>("")
   const [isConfirmSubmitting, setIsConfirmSubmitting] = useState(false)
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null)
+  const [bookedDates, setBookedDates] = useState<Date[]>([])
 
   const { toast } = useToast()
   useEffect(() => {
@@ -94,43 +95,63 @@ export function PublicBooking() {
     return () => clearTimeout(timer)
   }, [showSuccess])
 
+  // Fetch available cameras (only active ones)
   useEffect(() => {
-    const camerasRef = ref(db, "cameras")
-    const bookingsRef = ref(db, "bookings")
+    const camerasRef = ref(db, "cameras");
 
-    const handleData = (camerasSnap: any, bookingsSnap: any) => {
-      const camerasData = camerasSnap.exists() ? camerasSnap.val() : {}
-      const bookingsData = bookingsSnap.exists() ? bookingsSnap.val() : {}
-      const now = new Date()
-      const fourteenDaysLater = new Date()
-      fourteenDaysLater.setDate(now.getDate() + 14)
+    const unsubscribe = onValue(camerasRef, (snapshot) => {
+      const camerasData = snapshot.exists() ? snapshot.val() : {};
 
-      const cameraList = Object.entries(camerasData).map(([id, camValue]) => {
-        const cam = camValue as Omit<CameraType, "id">
+      const cameraList = Object.entries(camerasData)
+        .map(([id, camValue]) => {
+          const cam = camValue as Omit<CameraType, "id">;
+          return { id, ...cam };
+        })
+        .filter((c) => c.status === "active"); 
 
-        const isBooked = Object.values(bookingsData).some((b: any) => {
-          if (b.cameraId !== id) return false
-          if (!b.startDate || !b.endDate) return false
-          const start = normalizeDate(b.startDate)
-          const end = normalizeDate(b.endDate)
-          return b.status === "confirmed" && start <= fourteenDaysLater && end >= now
+      setCameras(cameraList);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+
+  // Fetch booked dates for the selected camera
+  useEffect(() => {
+    if (!selectedCamera?.id) return
+
+    const fetchBookedDates = async () => {
+      try {
+        const snap = await get(ref(db, "bookings"))
+        if (!snap.exists()) return
+
+        const allBookings = Object.values(snap.val())
+
+        const dates: Date[] = []
+
+        allBookings.forEach((b: any) => {
+          if (!b || b.cameraId !== selectedCamera.id) return
+          if (!["pending", "confirmed"].includes(b.status)) return
+
+          const start = new Date(b.startDate)
+          const end = new Date(b.endDate)
+
+          // Lấy tất cả các ngày trong khoảng start → end
+          const current = new Date(start)
+          while (current <= end) {
+            dates.push(new Date(current))
+            current.setDate(current.getDate() + 1)
+          }
         })
 
-        return { id, ...cam, isBooked }
-      })
-
-      setCameras(cameraList.filter((c) => c.status === "active" && !c.isBooked))
+        setBookedDates(dates)
+      } catch (err) {
+        console.error("Lỗi khi tải ngày đã đặt:", err)
+      }
     }
 
-    const unsubCameras = onValue(camerasRef, (snapCam) => {
-      onValue(bookingsRef, (snapBook) => {
-        handleData(snapCam, snapBook)
-      })
-    })
-
-    return () => unsubCameras()
-  }, [])
-
+    fetchBookedDates()
+  }, [selectedCamera])
 
   const handleCameraSelect = (camera: CameraType) => {
     setSelectedCamera(camera)
@@ -138,18 +159,74 @@ export function PublicBooking() {
     setStep("dates")
   }
 
-
-  const handleDateSelect = () => {
+  const handleDateSelect = async () => {
     if (!bookingForm.startDate || !bookingForm.endDate) {
       toast({
         title: "Lỗi",
-        description: "Vui lòng chọn ngày bắt đầu và kết thúc",
+        description: "Vui lòng chọn ngày bắt đầu và ngày kết thúc.",
         variant: "destructive",
       })
       return
     }
+
+    try {
+      const bookingsSnap = await get(ref(db, "bookings"))
+      if (bookingsSnap.exists()) {
+        const allBookings = Object.values(bookingsSnap.val())
+        const selectedCameraId = selectedCamera?.id
+
+        if (!selectedCameraId) {
+          toast({
+            title: "Lỗi",
+            description: "Không xác định được máy ảnh.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        const selectedStart = new Date(bookingForm.startDate)
+        const selectedEnd = new Date(bookingForm.endDate)
+
+        selectedStart.setHours(0, 0, 0, 0)
+        selectedEnd.setHours(23, 59, 59, 999)
+
+        const isOverlap = allBookings.some((b: any) => {
+          if (!b || b.cameraId !== selectedCameraId) return false
+          if (!b.startDate || !b.endDate) return false
+          if (!["pending", "confirmed"].includes(b.status)) return false
+
+          const start = new Date(b.startDate)
+          const end = new Date(b.endDate)
+
+          start.setHours(0, 0, 0, 0)
+          end.setHours(23, 59, 59, 999)
+
+          return selectedStart <= end && selectedEnd >= start
+        })
+
+        if (isOverlap) {
+          toast({
+            title: "Trùng lịch thuê",
+            description:
+              "Máy ảnh này chưa được trả trong ngày bạn chọn. Vui lòng chọn thời gian khác (sau ngày trả).",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi kiểm tra trùng lịch:", error)
+      toast({
+        title: "Lỗi kiểm tra lịch",
+        description: "Không thể kiểm tra lịch đặt máy. Vui lòng thử lại sau.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setStep("details")
   }
+
 
   const handleDetailsSubmit = () => {
     if (!bookingForm.customerName || !bookingForm.customerPhone) {
@@ -508,7 +585,23 @@ export function PublicBooking() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+
+            {/* 🟢 Legend hướng dẫn */}
+            <div className="flex items-center justify-center w-full gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-primary rounded-sm" /> <span>Ngày đã chọn</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-red-400 rounded-sm" /> <span>Đã được đặt</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-gray-200 rounded-sm border" /> <span>Không khả dụng</span>
+              </div>
+            </div>
+
+            {/* 📅 Grid chọn ngày bắt đầu và kết thúc */}
             <div className="grid md:grid-cols-2 gap-6">
+              {/* ---- Ngày bắt đầu ---- */}
               <div className="space-y-2">
                 <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ngày bắt đầu</Label>
                 <div className="grid grid-cols-2 gap-2">
@@ -525,8 +618,26 @@ export function PublicBooking() {
                       <Calendar
                         mode="single"
                         selected={bookingForm.startDate || undefined}
-                        onSelect={(date) => setBookingForm((prev) => ({ ...prev, startDate: date || null }))}
-                        disabled={(date) => date < new Date()}
+                        onSelect={(date) =>
+                          setBookingForm((prev) => ({
+                            ...prev,
+                            startDate: date || null,
+                            endDate: null,
+                          }))
+                        }
+                        disabled={(date) => {
+                          const isBooked = bookedDates.some(
+                            (d) => d.toDateString() === date.toDateString()
+                          );
+                          const isPast = date < new Date();
+                          return isBooked || isPast;
+                        }}
+                        modifiers={{
+                          booked: bookedDates,
+                        }}
+                        modifiersStyles={{
+                          booked: { backgroundColor: "#f87171", color: "white", borderRadius: "50%"},
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
@@ -534,7 +645,9 @@ export function PublicBooking() {
 
                   <Select
                     value={bookingForm.startTime || ""}
-                    onValueChange={(value) => setBookingForm((prev) => ({ ...prev, startTime: value }))}
+                    onValueChange={(value) =>
+                      setBookingForm((prev) => ({ ...prev, startTime: value }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Giờ nhận" />
@@ -548,6 +661,7 @@ export function PublicBooking() {
                 </div>
               </div>
 
+              {/* ---- Ngày kết thúc ---- */}
               <div className="space-y-2">
                 <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ngày kết thúc</Label>
                 <div className="grid grid-cols-2 gap-2">
@@ -564,8 +678,23 @@ export function PublicBooking() {
                       <Calendar
                         mode="single"
                         selected={bookingForm.endDate || undefined}
-                        onSelect={(date) => setBookingForm((prev) => ({ ...prev, endDate: date || null }))}
-                        disabled={(date) => date < (bookingForm.startDate || new Date())}
+                        onSelect={(date) =>
+                          setBookingForm((prev) => ({ ...prev, endDate: date || null }))
+                        }
+                        disabled={(date) => {
+                          const isBeforeStart =
+                            bookingForm.startDate && date < bookingForm.startDate;
+                          const isBooked = bookedDates.some(
+                            (d) => d.toDateString() === date.toDateString()
+                          );
+                          return isBeforeStart || isBooked;
+                        }}
+                        modifiers={{
+                          booked: bookedDates,
+                        }}
+                        modifiersStyles={{
+                          booked: { backgroundColor: "#f87171", color: "white", borderRadius: "50%"},
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
@@ -573,7 +702,9 @@ export function PublicBooking() {
 
                   <Select
                     value={bookingForm.endTime || ""}
-                    onValueChange={(value) => setBookingForm((prev) => ({ ...prev, endTime: value }))}
+                    onValueChange={(value) =>
+                      setBookingForm((prev) => ({ ...prev, endTime: value }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Giờ trả" />
@@ -588,7 +719,7 @@ export function PublicBooking() {
               </div>
             </div>
 
-            {/* Show summary if dates are selected */}
+            {/* Hiển thị tóm tắt */}
             {bookingForm.startDate && bookingForm.endDate && bookingForm.startTime && bookingForm.endTime && (
               <Card className="bg-muted/50">
                 <CardContent className="pt-4">
@@ -618,8 +749,9 @@ export function PublicBooking() {
               </Card>
             )}
 
+            {/* Nút điều hướng */}
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep("select")} >
+              <Button variant="outline" onClick={() => setStep("select")}>
                 Quay lại
               </Button>
               <Button onClick={handleDateSelect} className="flex-1" disabled={!isDayValid()}>
@@ -629,6 +761,7 @@ export function PublicBooking() {
           </CardContent>
         </Card>
       )}
+
 
 
       {/* Step 3: Customer Details */}
@@ -767,68 +900,68 @@ export function PublicBooking() {
                       </div>
                     </div>
 
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-[Be_Vietnam_Pro]">Số ngày</p>
-                          <p className="text-sm text-muted-foreground">
-                            {calculateTotalDays()} ngày
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                  {/* Khách hàng */}
-                    {/* Khách hàng */}
-                  <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-[Be_Vietnam_Pro]">Khách hàng</p>
-                          <p className="text-sm text-muted-foreground">
-                            {bookingForm.customerName}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-[Be_Vietnam_Pro]">Liên hệ</p>
-                          <p className="text-sm text-muted-foreground">
-                            {bookingForm.customerEmail}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {bookingForm.customerPhone}
-                          </p>
-                        </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-[Be_Vietnam_Pro]">Số ngày</p>
+                        <p className="text-sm text-muted-foreground">
+                          {calculateTotalDays()} ngày
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  {bookingForm.notes && (
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-sm font-[Be_Vietnam_Pro] mb-1">Ghi chú:</p>
-                      <p className="text-sm text-muted-foreground">
-                        {bookingForm.notes}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Tổng cộng */}
-                  <Card className="bg-primary/5 border-primary/20">
-                    <CardContent className="pt-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
-                          <span className="font-[Be_Vietnam_Pro]">Tổng cộng:</span>
-                          <span className="text-primary">
-                            {calculateTotalAmount().toLocaleString("vi-VN")}đ
-                          </span>
-                        </div>
+                  {/* Khách hàng */}
+                  {/* Khách hàng */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-[Be_Vietnam_Pro]">Khách hàng</p>
+                        <p className="text-sm text-muted-foreground">
+                          {bookingForm.customerName}
+                        </p>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-[Be_Vietnam_Pro]">Liên hệ</p>
+                        <p className="text-sm text-muted-foreground">
+                          {bookingForm.customerEmail}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {bookingForm.customerPhone}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {bookingForm.notes && (
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm font-[Be_Vietnam_Pro] mb-1">Ghi chú:</p>
+                    <p className="text-sm text-muted-foreground">
+                      {bookingForm.notes}
+                    </p>
+                  </div>
+                )}
+
+                {/* Tổng cộng */}
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="pt-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
+                        <span className="font-[Be_Vietnam_Pro]">Tổng cộng:</span>
+                        <span className="text-primary">
+                          {calculateTotalAmount().toLocaleString("vi-VN")}đ
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
               {/* RIGHT: Payment info */}
               <div className="flex flex-col items-center justify-center space-y-4 border-l pl-6 text-center">
