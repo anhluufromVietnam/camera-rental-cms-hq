@@ -28,7 +28,7 @@ import {
 import { cn } from "@/lib/utils"
 import { format, differenceInDays, parseISO } from "date-fns"
 
-type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "cancelled"
+type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "overtime" | "cancelled"
 
 interface StatusLog {
   id?: string
@@ -86,6 +86,7 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
   confirmed: "bg-blue-500",
   active: "bg-green-500",
   completed: "bg-gray-500",
+  overtime: "bg-orange-500",
   cancelled: "bg-red-500",
 }
 
@@ -126,49 +127,44 @@ export function CalendarView() {
       const data: Record<string, any> = snap.val()
       const list: Booking[] = Object.entries(data).map(([id, v]) => {
         const b = { id, ...(v as any) } as Booking
-        // normalize logs object to array
         const logsObj = (v && (v as any).statusChangeLogs) || null;
         if (logsObj && typeof logsObj === "object") {
           b.__logs = Object.entries(logsObj).map(([lid, lv]: [string, any]) => {
-            let dateVal: Date | null = null;
+            const ts = lv.changedAt;
+            let dateVal: Date;
 
-            if (!lv?.timestamp) {
-              dateVal = null;
-            } else if (typeof lv.timestamp === "object" && "seconds" in lv.timestamp) {
-              // Firestore Timestamp { seconds, nanoseconds }
-              dateVal = new Date(lv.timestamp.seconds * 1000);
-            } else if (typeof lv.timestamp === "number") {
-              // Epoch milliseconds
-              // Nếu giá trị nhỏ hơn 10^12 thì là giây => nhân 1000
-              dateVal = new Date(
-                lv.timestamp < 1e12 ? lv.timestamp * 1000 : lv.timestamp
-              );
-            } else if (typeof lv.timestamp === "string") {
-              // ISO string hoặc numeric string
-              const parsedNum = Number(lv.timestamp);
+            if (!ts) {
+              dateVal = new Date(0);
+            } else if (typeof ts === "object" && "seconds" in ts) {
+              dateVal = new Date(ts.seconds * 1000);
+            } else if (typeof ts === "number") {
+              dateVal = new Date(ts < 1e12 ? ts * 1000 : ts);
+            } else if (typeof ts === "string") {
+              const parsedNum = Number(ts);
               if (!isNaN(parsedNum)) {
                 dateVal = new Date(parsedNum < 1e12 ? parsedNum * 1000 : parsedNum);
               } else {
-                const parsed = Date.parse(lv.timestamp);
-                dateVal = isNaN(parsed) ? null : new Date(parsed);
+                const parsed = Date.parse(ts);
+                dateVal = isNaN(parsed) ? new Date(0) : new Date(parsed);
               }
+            } else {
+              dateVal = new Date(0);
             }
 
             return {
               id: lid,
-              status: lv.status,
-              timestamp: dateVal ? dateVal.toISOString() : new Date(0).toISOString(),
+              status: lv.newStatus || "unknown",
+              timestamp: dateVal.toISOString(),
             };
           });
 
-          // sort by time ascending
           b.__logs.sort(
-            (a, b) =>
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
         } else {
           b.__logs = [];
         }
+
 
         return b
       })
@@ -255,7 +251,6 @@ export function CalendarView() {
     colorClass: string
   }
 
-  // ✅ THÊM TRƯỚC RETURN
   const now = new Date()
   const currentHour = now.getHours()
   const displayHours = Array.from({ length: 5 }) // 5 slots: -2, -1, 0, +1, +2
@@ -644,9 +639,51 @@ export function CalendarView() {
                     <div className="space-y-2 text-sm">
                       {selectedBooking.__logs!.map((l) => {
                         const dateValue = new Date(l.timestamp);
+                        const getStatusLabel = (status: string) => {
+                          switch (status) {
+                            case "pending":
+                              return "Chờ xác nhận";
+                            case "confirmed":
+                              return "Đã xác nhận";
+                            case "active":
+                              return "Đang thực hiện";
+                            case "completed":
+                              return "Hoàn thành";
+                            case "overtime":
+                              return "Quá hạn";
+                            case "cancelled":
+                              return "Đã hủy";
+                            default:
+                              return status;
+                          }
+                        };
+                        const getStatusColor = (status: string) => {
+                          switch (status) {
+                            case "pending":
+                              return "text-yellow-600";
+                            case "confirmed":
+                              return "text-blue-600";
+                            case "active":
+                              return "text-green-600";
+                            case "completed":
+                              return "text-gray-600";
+                            case "overtime":
+                              return "text-orange-600";
+                            case "cancelled":
+                              return "text-red-600";
+                            default:
+                              return "text-foreground";
+                          }
+                        };
                         return (
-                          <div key={l.id ?? String(l.timestamp)} className="flex justify-between">
-                            <div>{l.status}</div>
+                          <div
+                            key={l.id ?? String(l.timestamp)}
+                            className="flex justify-between items-center"
+                          >
+                            <div className={`capitalize font-medium ${getStatusColor(l.status)}`}>
+                              {getStatusLabel(l.status)}
+
+                            </div>
                             <div className="text-muted-foreground">
                               {isNaN(dateValue.getTime())
                                 ? "Không xác định"

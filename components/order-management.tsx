@@ -51,7 +51,7 @@ interface Booking {
   totalDays: number
   dailyRate: number
   totalAmount: number
-  status: "pending" | "confirmed" | "active" | "completed" | "cancelled"
+  status: "pending" | "confirmed" | "active" | "completed" | "overtime" | "cancelled"
   createdAt: string
   notes?: string
   adminNotes?: string | null
@@ -318,6 +318,7 @@ export function OrderManagement() {
       confirmed: bookings.filter((b) => b.status === "confirmed").length,
       active: bookings.filter((b) => b.status === "active").length,
       completed: bookings.filter((b) => b.status === "completed").length,
+      overtime: bookings.filter((b) => b.status === "overtime").length, 
       cancelled: bookings.filter((b) => b.status === "cancelled").length,
     }
   }, [bookings])
@@ -412,6 +413,12 @@ export function OrderManagement() {
           <CardContent className="pt-4">
             <div className="text-2xl font-bold text-gray-600">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">Hoàn thành</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-2xl font-bold text-orange-600">{stats.overtime}</div>
+            <p className="text-xs text-muted-foreground">Quá hạn</p>
           </CardContent>
         </Card>
         <Card>
