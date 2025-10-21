@@ -46,10 +46,12 @@ interface Booking {
   cameraName: string
   startDate: string
   endDate: string
+  startTime?: string | null
+  endTime?: string | null
   totalDays: number
   dailyRate: number
   totalAmount: number
-  status: "pending" | "confirmed" | "active" | "completed" | "cancelled"
+  status: "pending" | "confirmed" | "active" | "completed" | "overtime" | "cancelled"
   createdAt: string
   notes?: string
   adminNotes?: string | null
@@ -86,6 +88,14 @@ const STATUS_CONFIG = {
     textColor: "text-gray-700",
     bgColor: "bg-gray-50",
     icon: CheckCircle,
+    nextStatus: null,
+  },
+  overtime: {
+    label: "Quá hạn",
+    color: "bg-orange-500",
+    textColor: "text-orange-700",
+    bgColor: "bg-orange-50",
+    icon: Clock,
     nextStatus: null,
   },
   cancelled: {
@@ -210,7 +220,7 @@ export function OrderManagement() {
       await push(logRef, {
         oldStatus: orig.status,
         newStatus: status,
-        changedBy: "admin", 
+        changedBy: "admin",
         changedAt: new Date().toISOString(),
         notes: notes || null,
       })
@@ -308,6 +318,7 @@ export function OrderManagement() {
       confirmed: bookings.filter((b) => b.status === "confirmed").length,
       active: bookings.filter((b) => b.status === "active").length,
       completed: bookings.filter((b) => b.status === "completed").length,
+      overtime: bookings.filter((b) => b.status === "overtime").length, 
       cancelled: bookings.filter((b) => b.status === "cancelled").length,
     }
   }, [bookings])
@@ -373,7 +384,7 @@ export function OrderManagement() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card>
           <CardContent className="pt-4">
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -402,6 +413,12 @@ export function OrderManagement() {
           <CardContent className="pt-4">
             <div className="text-2xl font-bold text-gray-600">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">Hoàn thành</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-2xl font-bold text-orange-600">{stats.overtime}</div>
+            <p className="text-xs text-muted-foreground">Quá hạn</p>
           </CardContent>
         </Card>
         <Card>
@@ -562,8 +579,11 @@ export function OrderManagement() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Chi tiết đơn hàng #{selectedBooking?.id}
+              Chi tiết đơn hàng
             </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Mã vận đơn: {selectedBooking?.id}
+            </DialogDescription>
           </DialogHeader>
 
           {selectedBooking && (
@@ -610,6 +630,18 @@ export function OrderManagement() {
                           {new Date(selectedBooking.startDate).toLocaleDateString("vi-VN")} -{" "}
                           {new Date(selectedBooking.endDate).toLocaleDateString("vi-VN")}
                         </span>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground italic">
+                          Giờ nhận:{" "}
+                          <span className="font-medium text-foreground">
+                            {selectedBooking.startTime || "--:--"}
+                          </span>{" "}
+                          Giờ trả:{" "}
+                          <span className="font-medium text-foreground">
+                            {selectedBooking.endTime || "--:--"}
+                          </span>
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
@@ -669,6 +701,7 @@ export function OrderManagement() {
                   <SelectItem value="confirmed">Đã xác nhận</SelectItem>
                   <SelectItem value="active">Đang thuê</SelectItem>
                   <SelectItem value="completed">Hoàn thành</SelectItem>
+                  <SelectItem value="overtime">Quá hạn</SelectItem>
                   <SelectItem value="cancelled">Đã hủy</SelectItem>
                 </SelectContent>
               </Select>

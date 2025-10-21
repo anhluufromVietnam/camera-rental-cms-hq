@@ -32,10 +32,12 @@ interface Booking {
   cameraName: string
   startDate: string
   endDate: string
+  startTime: string
+  endTime: string
   totalDays: number
   dailyRate: number
   totalAmount: number
-  status: "pending" | "confirmed" | "active" | "completed" | "cancelled"
+  status: "pending" | "confirmed" | "active" | "completed" | "overtime" | "cancelled"
   createdAt: string
   notes?: string
 }
@@ -51,6 +53,7 @@ const BOOKING_STATUSES = [
   { value: "confirmed", label: "Đã xác nhận", color: "bg-blue-500" },
   { value: "active", label: "Đang thuê", color: "bg-green-500" },
   { value: "completed", label: "Hoàn thành", color: "bg-gray-500" },
+  { value: "overtime", label: "Quá hạn", color: "bg-orange-500" },
   { value: "cancelled", label: "Đã hủy", color: "bg-red-500" },
 ]
 
@@ -85,6 +88,7 @@ export function BookingDashboard() {
     totalBookings: bookings.length,
     pendingBookings: bookings.filter((b) => b.status === "pending").length,
     activeBookings: bookings.filter((b) => b.status === "active").length,
+    overtimeBookings: bookings.filter((b) => b.status === "overtime").length,
     totalRevenue: bookings
       .filter((b) => b.status === "completed")
       .reduce((sum, b) => sum + b.totalAmount, 0),
@@ -148,6 +152,8 @@ export function BookingDashboard() {
         return <Package className="h-4 w-4" />
       case "completed":
         return <CheckCircle className="h-4 w-4" />
+      case "overtime":
+        return <Clock className="h-4 w-4" />
       case "cancelled":
         return <XCircle className="h-4 w-4" />
       default:
@@ -203,7 +209,7 @@ export function BookingDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tổng đơn hàng</CardTitle>
@@ -231,6 +237,16 @@ export function BookingDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.activeBookings}</div>
+          </CardContent>
+        </Card>
+
+        <Card>  
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Quá hạn</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{stats.overtimeBookings}</div>
           </CardContent>
         </Card>
 
@@ -320,7 +336,11 @@ export function BookingDashboard() {
                     <p className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
                       {new Date(booking.startDate).toLocaleDateString("vi-VN")} →{" "}
-                      {new Date(booking.endDate).toLocaleDateString("vi-VN")}
+                      {new Date(booking.endDate).toLocaleDateString("vi-VN")}             
+                    </p>
+                     <p className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      Giờ nhận: {booking.startTime} - Giờ trả: {booking.endTime}
                     </p>
                     <p>
                       <span className="font-medium">Số ngày:</span> {booking.totalDays || 0} ngày

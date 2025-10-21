@@ -7,6 +7,7 @@ import { CameraManagement } from "@/components/camera-management"
 import { BookingDashboard } from "@/components/booking-dashboard"
 import { CalendarView } from "@/components/calendar-view"
 import { OrderManagement } from "@/components/order-management"
+import { SettingsImage } from "@/components/settings-image"
 import { Camera, Calendar, Package, Settings, LogOut } from "lucide-react"
 
 export default function AdminDashboard() {
@@ -73,7 +74,7 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8">
         <div className="glass-card rounded-3xl p-6">
           <Tabs defaultValue="cameras" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 glass p-2 h-auto gap-2">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
               <TabsTrigger
                 value="cameras"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
@@ -102,6 +103,13 @@ export default function AdminDashboard() {
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Quản lý đơn</span>
               </TabsTrigger>
+              <TabsTrigger
+                value="settings"
+                className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Cài đặt</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="cameras">
@@ -118,6 +126,10 @@ export default function AdminDashboard() {
 
             <TabsContent value="orders">
               <OrderManagement />
+            </TabsContent>
+            
+            <TabsContent value="settings">
+              <SettingsImage />
             </TabsContent>
           </Tabs>
         </div>
