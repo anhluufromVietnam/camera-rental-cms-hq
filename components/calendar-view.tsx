@@ -1,8 +1,10 @@
+// components/calendar-view.tsx
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
 import { ref, onValue } from "firebase/database"
 import { db } from "@/firebase.config"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,15 +18,15 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   User,
   Camera,
   Phone,
+  List,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format, differenceInDays, parseISO } from "date-fns"
-import { vi } from "date-fns/locale"
 
 type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "overtime" | "cancelled"
 
@@ -52,7 +54,7 @@ interface Booking {
   createdAt?: string
   notes?: string
   statusChangeLogs?: Record<string, { status: BookingStatus; timestamp: string }>
-  __logs?: StatusLog[]
+  __logs?: StatusLog[] // normalized
 }
 
 interface CalendarDay {
@@ -95,7 +97,7 @@ const EVENT_COLORS = {
 }
 
 const normalizeToDate = (d: string | Date) => {
-  const date = typeof d === "string" ? parseISO(d) : new Date(d)
+  const date = typeof d === "string" ? new Date(d) : new Date(d)
   date.setHours(0, 0, 0, 0)
   return date
 }
@@ -110,6 +112,7 @@ export function CalendarView() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
+  const [selectedDayBookings, setSelectedDayBookings] = useState<Booking[] | null>(null)
   const [viewMode, setViewMode] = useState<"month" | "day">("month")
 
   // Load bookings & normalize logs
@@ -123,31 +126,14 @@ export function CalendarView() {
       const data: Record<string, any> = snap.val()
       const list: Booking[] = Object.entries(data).map(([id, v]) => {
         const b = { id, ...(v as any) } as Booking
-        const logsObj = v?.statusChangeLogs || null
+        const logsObj = (v && (v as any).statusChangeLogs) || null
         if (logsObj && typeof logsObj === "object") {
-          b.__logs = Object.entries(logsObj).map(([lid, lv]: [string, any]) => {
-            let dateVal: Date
-            const ts = lv.changedAt || lv.timestamp
-
-            if (!ts) {
-              dateVal = new Date(0)
-            } else if (typeof ts === "object" && "seconds" in ts) {
-              dateVal = new Date(ts.seconds * 1000)
-            } else if (typeof ts === "number") {
-              dateVal = new Date(ts < 1e12 ? ts * 1000 : ts)
-            } else if (typeof ts === "string") {
-              const parsed = parseISO(ts)
-              dateVal = isNaN(parsed.getTime()) ? new Date(0) : parsed
-            } else {
-              dateVal = new Date(0)
-            }
-
-            return {
-              id: lid,
-              status: lv.newStatus || lv.status || "unknown",
-              timestamp: dateVal.toISOString(),
-            }
-          }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+          b.__logs = Object.entries(logsObj).map(([lid, lv]: [string, any]) => ({
+            id: lid,
+            status: lv.status,
+            timestamp: lv.timestamp,
+          }))
+          b.__logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
         } else {
           b.__logs = []
         }
@@ -158,21 +144,22 @@ export function CalendarView() {
     return () => unsub()
   }, [])
 
-  // Save bookings to localStorage
   useEffect(() => {
     try {
       localStorage.setItem("bookings", JSON.stringify(bookings))
     } catch {
-      console.warn("Failed to save bookings to localStorage")
+      // ignore
     }
   }, [bookings])
 
-  // Calendar generation
+  // Calendar generation with inclusive date logic
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
+
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
+
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - startDate.getDay())
     const endDate = new Date(lastDay)
@@ -206,7 +193,7 @@ export function CalendarView() {
     return days
   }, [bookings, currentDate])
 
-  // Navigation
+  // NAV
   const navigateMonth = (dir: "prev" | "next") => {
     setCurrentDate((d) => {
       const copy = new Date(d)
@@ -214,33 +201,35 @@ export function CalendarView() {
       return copy
     })
   }
-
   const goToToday = () => {
-    const today = new Date()
-    setCurrentDate(today)
+    setCurrentDate(new Date())
     setViewMode("day")
-    setSelectedDay(today)
+    setSelectedDay(new Date())
   }
 
-  // Day events
+  // Day events extraction (deliver / receive / reserved)
   type EventItem = {
     id: string
     booking: Booking
     type: "giao" | "nhan" | "reserved"
-    time?: Date
+    time?: Date // for giao/nhan
     title: string
     colorClass: string
+    startTime?: string // from booking.startTime
+    endTime?: string // from booking.endTime
   }
+
+  const now = new Date()
+  const currentHour = now.getHours()
+  const displayHours = Array.from({ length: 24 }).map((_, i) => i) // Hiển thị 0–23h
 
   const getEventsForDay = (day: Date): EventItem[] => {
     const dayStart = normalizeToDate(day)
-    const dayEnd = new Date(dayStart)
-    dayEnd.setHours(23, 59, 59, 999)
+    const dayEnd = new Date(dayStart); dayEnd.setHours(23, 59, 59, 999)
 
     const events: EventItem[] = []
 
     bookings.forEach((b) => {
-      if (!b.startDate || !b.endDate) return
       const start = normalizeToDate(b.startDate)
       const end = normalizeToDate(b.endDate)
       if (start > dayEnd || end < dayStart) return
@@ -249,7 +238,6 @@ export function CalendarView() {
       const activeLog = logs.find((l) => l.status === "active")
       const completedLog = logs.find((l) => l.status === "completed")
 
-      // Giao event
       if (activeLog) {
         const ts = new Date(activeLog.timestamp)
         if (isSameDay(ts, day)) {
@@ -260,22 +248,27 @@ export function CalendarView() {
             time: ts,
             title: `Giao: ${b.customerName}`,
             colorClass: EVENT_COLORS.giao,
+            startTime: b.startTime,
+            endTime: b.endTime,
           })
         }
-      } else if (isSameDay(start, day)) {
-        const t = new Date(start)
-        t.setHours(b.startTime ? parseInt(b.startTime.split(":")[0]) : 9, 0, 0, 0)
-        events.push({
-          id: `${b.id}-giao-default`,
-          booking: b,
-          type: "giao",
-          time: t,
-          title: `Giao (dự kiến): ${b.customerName}`,
-          colorClass: EVENT_COLORS.giao,
-        })
+      } else {
+        if (isSameDay(start, day)) {
+          const t = new Date(start)
+          t.setHours(9, 0, 0, 0)
+          events.push({
+            id: `${b.id}-giao-default`,
+            booking: b,
+            type: "giao",
+            time: t,
+            title: `Giao (dự kiến): ${b.customerName}`,
+            colorClass: EVENT_COLORS.giao,
+            startTime: b.startTime || "09:00",
+            endTime: b.endTime,
+          })
+        }
       }
 
-      // Nhan event
       if (completedLog) {
         const ts = new Date(completedLog.timestamp)
         if (isSameDay(ts, day)) {
@@ -286,29 +279,36 @@ export function CalendarView() {
             time: ts,
             title: `Nhận: ${b.customerName}`,
             colorClass: EVENT_COLORS.nhan,
+            startTime: b.startTime,
+            endTime: b.endTime,
           })
         }
-      } else if (isSameDay(end, day)) {
-        const t = new Date(end)
-        t.setHours(b.endTime ? parseInt(b.endTime.split(":")[0]) : 18, 0, 0, 0)
-        events.push({
-          id: `${b.id}-nhan-default`,
-          booking: b,
-          type: "nhan",
-          time: t,
-          title: `Nhận (dự kiến): ${b.customerName}`,
-          colorClass: EVENT_COLORS.nhan,
-        })
+      } else {
+        if (isSameDay(end, day)) {
+          const t = new Date(end)
+          t.setHours(18, 0, 0, 0)
+          events.push({
+            id: `${b.id}-nhan-default`,
+            booking: b,
+            type: "nhan",
+            time: t,
+            title: `Nhận (dự kiến): ${b.customerName}`,
+            colorClass: EVENT_COLORS.nhan,
+            startTime: b.startTime,
+            endTime: b.endTime || "18:00",
+          })
+        }
       }
 
-      // Reserved event
-      if (start <= dayEnd && end >= dayStart && !isSameDay(start, day) && !isSameDay(end, day)) {
+      if ((start <= dayEnd && end >= dayStart) && !(isSameDay(start, day) || isSameDay(end, day))) {
         events.push({
           id: `${b.id}-reserved-${format(day, "yyyyMMdd")}`,
           booking: b,
           type: "reserved",
           title: `Đang thuê: ${b.customerName}`,
           colorClass: EVENT_COLORS.reserved,
+          startTime: b.startTime,
+          endTime: b.endTime,
         })
       }
     })
@@ -316,23 +316,30 @@ export function CalendarView() {
     events.sort((a, b) => {
       if (a.type === "reserved" && b.type !== "reserved") return -1
       if (b.type === "reserved" && a.type !== "reserved") return 1
-      if (!a.time || !b.time) return 0
-      return a.time.getTime() - b.time.getTime()
+      if (!a.time && b.time) return 1
+      if (!b.time && a.time) return -1
+      if (a.time && b.time) return a.time.getTime() - b.time.getTime()
+      return 0
     })
 
     return events
   }
 
-  // Display hours for day view
-  const now = new Date()
-  const currentHour = now.getHours()
-  const displayHours = Array.from({ length: 24 }, (_, i) => i) // Show all 24 hours for consistency
+  const hours = Array.from({ length: 24 }).map((_, i) => i)
+
+  const openDay = (day: Date, dayBookings: Booking[]) => {
+    setSelectedDay(day)
+    setSelectedDayBookings(dayBookings)
+    setViewMode("day")
+  }
+
+  const activeDay = selectedDay || new Date()
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-foreground">Lịch & Dashboard</h2>
-        <p className="text-muted-foreground">Xem lịch đặt thuê theo tháng hoặc theo ngày (0–24h). Nhấn vào ngày để xem chi tiết.</p>
+        <p className="text-muted-foreground">Month view + Daily timeline (0–24h). Click ngày để xem chi tiết giao/nhận.</p>
       </div>
 
       <div className="flex items-center gap-2">
@@ -360,7 +367,7 @@ export function CalendarView() {
               {calendarDays.map((day, idx) => (
                 <div
                   key={idx}
-                  onClick={() => setSelectedDay(day.date)}
+                  onClick={() => openDay(day.date, day.bookings)}
                   className={cn(
                     "min-h-[90px] p-2 border rounded cursor-pointer hover:bg-muted/50 transition-colors flex flex-col",
                     !day.isCurrentMonth && "bg-muted/20 text-muted-foreground"
@@ -398,57 +405,61 @@ export function CalendarView() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div>
-                  <CardTitle className="text-xl">{format(selectedDay || new Date(), "dd/MM/yyyy", { locale: vi })}</CardTitle>
-                  <div className="text-sm text-muted-foreground">{MONTHS[(selectedDay || new Date()).getMonth()]} {(selectedDay || new Date()).getFullYear()}</div>
+                  <CardTitle className="text-xl">{format(activeDay, "dd/MM/yyyy")}</CardTitle>
+                  <div className="text-sm text-muted-foreground">{MONTHS[activeDay.getMonth()]} {activeDay.getFullYear()}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => {
                   setSelectedDay((d) => {
-                    const c = new Date(d || new Date())
-                    c.setDate(c.getDate() - 1)
+                    if (!d) return new Date();
+                    const c = new Date(d);
+                    c.setDate(c.getDate() - 1);
                     return c
                   })
                 }}>Prev day</Button>
                 <Button variant="outline" size="sm" onClick={() => {
                   setSelectedDay((d) => {
-                    const c = new Date(d || new Date())
-                    c.setDate(c.getDate() + 1)
+                    if (!d) return new Date();
+                    const c = new Date(d);
+                    c.setDate(c.getDate() + 1);
                     return c
                   })
                 }}>Next day</Button>
-                <Button variant="outline" onClick={() => setSelectedDay(new Date())}>Today</Button>
+                <Button variant="outline" onClick={() => { setSelectedDay(new Date()) }}>Today</Button>
               </div>
             </div>
           </CardHeader>
+
           <CardContent>
-            <div className="grid grid-cols-[80px_1fr] gap-4">
+            <div className="grid grid-cols-[80px_1fr] gap-4 max-h-[600px] overflow-y-auto">
               <div className="space-y-1">
                 {displayHours.map((h) => (
-                  <div key={h} className="text-xs text-muted-foreground h-10 flex items-center justify-end pr-2">
+                  <div key={h} className="text-xs text-muted-foreground h-12 flex items-center justify-end pr-2">
                     {String(h).padStart(2, "0")}:00
-                    {h === currentHour && isSameDay(selectedDay || new Date(), new Date()) && (
-                      <span className="ml-1 text-primary font-bold">●</span>
-                    )}
+                    {h === currentHour && <span className="ml-1 text-primary font-bold">●</span>}
                   </div>
                 ))}
               </div>
               <div className="space-y-1 relative">
                 {displayHours.map((h) => {
-                  const events = getEventsForDay(selectedDay || new Date()).filter((ev) => ev.time && ev.time.getHours() === h)
+                  const events = getEventsForDay(activeDay).filter((ev) => ev.time ? ev.time.getHours() === h : false)
                   return (
-                    <div key={h} className="h-10 border-b border-muted/50 flex items-center gap-2 px-2">
+                    <div key={h} className="h-12 border-b border-muted/50 flex items-center gap-2 px-2">
                       <div className="flex gap-2 flex-wrap">
                         {events.map((ev) => (
                           <div
                             key={ev.id}
                             onClick={() => setSelectedBooking(ev.booking)}
-                            className={cn("px-2 py-1 rounded text-white text-sm cursor-pointer shadow", ev.colorClass)}
-                            title={`${ev.title} • ${ev.time ? format(ev.time, "HH:mm", { locale: vi }) : "All day"}`}
+                            className={cn(
+                              "px-2 py-1 rounded text-white text-xs cursor-pointer shadow whitespace-nowrap",
+                              ev.colorClass
+                            )}
+                            title={`${ev.title} • ${ev.time ? format(ev.time, "HH:mm") : "All day"} • Thuê: ${ev.startTime || "--:--"} - Trả: ${ev.endTime || "--:--"}`}
                           >
                             <div className="font-medium">{ev.booking.cameraName}</div>
                             <div className="text-xs opacity-90">
-                              {ev.title} {ev.time ? `• ${format(ev.time, "HH:mm", { locale: vi })}` : ""}
+                              {ev.title} {ev.time ? `• ${format(ev.time, "HH:mm")}` : ""} • Thuê: {ev.startTime || "--:--"} - Trả: {ev.endTime || "--:--"}
                             </div>
                           </div>
                         ))}
@@ -457,9 +468,9 @@ export function CalendarView() {
                   )
                 })}
                 <div className="absolute top-0 right-0 mr-4 mt-2">
-                  {getEventsForDay(selectedDay || new Date()).filter(e => e.type === "reserved").map((ev) => (
+                  {getEventsForDay(activeDay).filter(e => !e.time || e.type === "reserved").map((ev) => (
                     <div key={ev.id} className={cn("px-3 py-1 rounded mb-2 text-white text-sm", ev.colorClass)}>
-                      {ev.title}
+                      {ev.title} {ev.startTime || ev.endTime ? `• Thuê: ${ev.startTime || "--:--"} - Trả: ${ev.endTime || "--:--"}` : ""}
                     </div>
                   ))}
                 </div>
@@ -468,15 +479,18 @@ export function CalendarView() {
             <div className="mt-4">
               <h3 className="text-lg font-semibold mb-2">Sự kiện trong ngày</h3>
               <div className="space-y-2">
-                {getEventsForDay(selectedDay || new Date()).length === 0 && (
+                {getEventsForDay(activeDay).length === 0 && (
                   <div className="text-sm text-muted-foreground">Không có sự kiện hôm nay.</div>
                 )}
-                {getEventsForDay(selectedDay || new Date()).map((ev) => (
+                {getEventsForDay(activeDay).map((ev) => (
                   <div key={ev.id} className="p-3 border rounded flex justify-between items-center">
                     <div>
                       <div className="font-medium">{ev.title}</div>
                       <div className="text-sm text-muted-foreground">
-                        {ev.time ? format(ev.time, "HH:mm dd/MM/yyyy", { locale: vi }) : "Cả ngày"} • {ev.booking.cameraName}
+                        {ev.time ? format(ev.time, "HH:mm dd/MM/yyyy") : "All day"} • {ev.booking.cameraName}
+                        {ev.startTime || ev.endTime ? (
+                          <span> • Thuê: {ev.startTime || "--:--"} - Trả: {ev.endTime || "--:--"}</span>
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -508,12 +522,12 @@ export function CalendarView() {
                   <User className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">{selectedBooking.customerName}</p>
-                    <p className="text-sm text-muted-foreground">{selectedBooking.customerEmail || "Không có email"}</p>
+                    <p className="text-sm text-muted-foreground">{selectedBooking.customerEmail}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{selectedBooking.customerPhone || "Không có số điện thoại"}</span>
+                  <span className="text-sm">{selectedBooking.customerPhone}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Camera className="h-4 w-4 text-muted-foreground" />
@@ -523,14 +537,12 @@ export function CalendarView() {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <div className="text-sm">
                     <p>
-                      {format(normalizeToDate(selectedBooking.startDate), "dd/MM/yyyy", { locale: vi })} -{" "}
-                      {format(normalizeToDate(selectedBooking.endDate), "dd/MM/yyyy", { locale: vi })}
+                      {format(normalizeToDate(selectedBooking.startDate), "dd/MM/yyyy")} - {format(normalizeToDate(selectedBooking.endDate), "dd/MM/yyyy")}
                     </p>
                     <p className="text-muted-foreground">{differenceInDays(normalizeToDate(selectedBooking.endDate), normalizeToDate(selectedBooking.startDate)) + 1} ngày</p>
                     {(selectedBooking.startTime || selectedBooking.endTime) && (
                       <p className="text-muted-foreground italic">
-                        Giờ nhận: <span className="font-medium text-foreground">{selectedBooking.startTime || "--:--"}</span> -
-                        Giờ trả: <span className="font-medium text-foreground">{selectedBooking.endTime || "--:--"}</span>
+                        Giờ nhận: <span className="font-medium text-foreground">{selectedBooking.startTime || "--:--"}</span> - Giờ trả: <span className="font-medium text-foreground">{selectedBooking.endTime || "--:--"}</span>
                       </p>
                     )}
                   </div>
@@ -561,8 +573,8 @@ export function CalendarView() {
                           switch (status) {
                             case "pending": return "Chờ xác nhận"
                             case "confirmed": return "Đã xác nhận"
-                            case "active": return "Đang thuê"
-                            case "completed": return "Đã hoàn thành"
+                            case "active": return "Đang thực hiện"
+                            case "completed": return "Hoàn thành"
                             case "overtime": return "Quá hạn"
                             case "cancelled": return "Đã hủy"
                             default: return status
@@ -580,14 +592,20 @@ export function CalendarView() {
                           }
                         }
                         return (
-                          <div key={l.id ?? l.timestamp} className="flex justify-between items-center">
-                            <div className={cn("capitalize font-medium", getStatusColor(l.status))}>
+                          <div key={l.id ?? String(l.timestamp)} className="flex justify-between items-center">
+                            <div className={`capitalize font-medium ${getStatusColor(l.status)}`}>
                               {getStatusLabel(l.status)}
                             </div>
                             <div className="text-muted-foreground">
                               {isNaN(dateValue.getTime())
                                 ? "Không xác định"
-                                : format(dateValue, "dd/MM/yyyy HH:mm", { locale: vi })}
+                                : dateValue.toLocaleString("vi-VN", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                             </div>
                           </div>
                         )
