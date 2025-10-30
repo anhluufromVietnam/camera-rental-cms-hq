@@ -16,6 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
 
 // helper: resize image to reduce size
 const resizeImage = (file: File, maxWidth = 500): Promise<Blob> => {
@@ -52,6 +53,8 @@ export function SettingsImage() {
   const [accountHolder, setAccountHolder] = useState("")
   const [paymentSyntax, setPaymentSyntax] = useState("")
 
+  const { toast } = useToast()
+
   const fetchSettings = async () => {
     try {
       const settingsRef = ref(db, "settings")
@@ -66,6 +69,11 @@ export function SettingsImage() {
       }
     } catch (err) {
       console.error("Error fetching settings:", err)
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải cài đặt, vui lòng thử lại",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -85,7 +93,11 @@ export function SettingsImage() {
 
   const handleSaveSettings = async () => {
     if (!bankName || !accountNumber || !accountHolder || !paymentSyntax) {
-      console.warn("Missing fields, cannot save")
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng điền đầy đủ thông tin ngân hàng và cú pháp chuyển khoản",
+        variant: "destructive",
+      })
       return
     }
 
@@ -114,9 +126,19 @@ export function SettingsImage() {
       setPreviewUrl("")
       await fetchSettings()
 
-      setSuccessDialog(true)
+      setSuccessDialog(true) 
+      toast({
+        title: "Thành công",
+        description: "Cài đặt thanh toán đã được lưu",
+        variant: "default",
+      })
     } catch (err) {
       console.error("Error saving settings:", err)
+      toast({
+        title: "Lỗi",
+        description: "Không thể lưu cài đặt, vui lòng thử lại",
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
@@ -249,6 +271,83 @@ export function SettingsImage() {
       </div>
 
       {/* ✅ Success Dialog */}
+      <Dialog open={successDialog} onOpenChange={setSuccessDialog}>
+        <DialogContent className="sm:max-w-md text-center">
+          <DialogHeader>
+            <DialogTitle className="text-green-600 flex justify-center items-center gap-2 text-xl">
+              <CheckCircle2 className="w-6 h-6" />
+              Lưu thành công!
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 pt-2">
+              Cài đặt thanh toán của bạn đã được lưu lại thành công
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Bank Info */}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-200 rounded-xl p-6 shadow-sm space-y-5">
+            <h4 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+              💳 Thông tin chuyển khoản
+            </h4>
+
+            <div className="space-y-2">
+              <Label className="text-blue-900 font-medium">Ngân hàng</Label>
+              <Input
+                placeholder="VD: Vietcombank"
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-blue-900 font-medium">Số tài khoản</Label>
+              <Input
+                placeholder="VD: 0123456789"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-blue-900 font-medium">Chủ tài khoản</Label>
+              <Input
+                placeholder="VD: CONG TY QUAN LY TOA NHA"
+                value={accountHolder}
+                onChange={(e) => setAccountHolder(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-blue-900 font-medium">Cú pháp chuyển khoản</Label>
+              <Input
+                placeholder="VD: Thanh toán [Tên] - [Mã đơn]"
+                value={paymentSyntax}
+                onChange={(e) => setPaymentSyntax(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <Button
+            onClick={handleSaveSettings}
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-5 font-semibold rounded-xl shadow-md"
+          >
+            {saving ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Đang lưu...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Lưu cài đặt
+              </>
+            )}
+          </Button>
+        </DialogContent>
+      </Dialog>
+            
+      {/* Success Dialog */}
       <Dialog open={successDialog} onOpenChange={setSuccessDialog}>
         <DialogContent className="sm:max-w-md text-center">
           <DialogHeader>

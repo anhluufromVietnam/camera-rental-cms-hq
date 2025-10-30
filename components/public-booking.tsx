@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { get, ref, onValue, push } from "firebase/database"
+// 'update' đã được thêm vào để cập nhật số lượng
+import { get, ref, onValue, push, update } from "firebase/database"
 import { db, storage } from "@/firebase.config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,14 +14,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
-import { CameraIcon, CalendarIcon, Clock, Check, Mail, User, BrickWallIcon } from "lucide-react"
+// Bỏ BrickWallIcon vì không dùng
+import { CameraIcon, CalendarIcon, Clock, Check, Mail, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Be_Vietnam_Pro, Inter, Manrope } from "next/font/google"
-
 
 interface CameraType {
   id: string
@@ -37,6 +38,8 @@ interface CameraType {
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
+  quantity: number
+  available: number
 }
 
 interface BookingForm {
@@ -95,21 +98,104 @@ export function PublicBooking() {
     return () => clearTimeout(timer)
   }, [showSuccess])
 
-  // Fetch available cameras (only active ones)
+  // // Fetch available cameras (only active ones)
+  // useEffect(() => {
+  //   const camerasRef = ref(db, "cameras");
+
+  //   const unsubscribe = onValue(camerasRef, (snapshot) => {
+  //     const camerasData = snapshot.exists() ? snapshot.val() : {};
+
+  //     const cameraList = Object.entries(camerasData)
+  //       .map(([id, camValue]) => {
+  //         const cam = camValue as Omit<CameraType, "id">;
+  //         return { id, ...cam };
+  //       })
+  //       .filter((c) => c.status === "active"); 
+
+  //     setCameras(cameraList);
+  //   });
+
+  //   return () => unsubscribe();
+  // }, []);
+
+
+  // // Fetch booked dates for the selected camera
+  // useEffect(() => {
+  //   if (!selectedCamera?.id) return
+
+  //   const fetchBookedDates = async () => {
+  //     try {
+  //       const snap = await get(ref(db, "bookings"))
+  //       if (!snap.exists()) return
+
+  //       const allBookings = Object.values(snap.val())
+
+  //       const dates: Date[] = []
+
+  //       allBookings.forEach((b: any) => {
+  //         if (!b || b.cameraId !== selectedCamera.id) return
+  //         if (!["pending", "confirmed"].includes(b.status)) return
+
+  //         const start = new Date(b.startDate)
+  //         const end = new Date(b.endDate)
+
+  //         // Lấy tất cả các ngày trong khoảng start → end
+  //         const current = new Date(start)
+  //         while (current <= end) {
+  //           dates.push(new Date(current))
+  //           current.setDate(current.getDate() + 1)
+  //         }
+  //       })
+
+  //       setBookedDates(dates)
+  //     } catch (err) {
+  //       console.error("Lỗi khi tải ngày đã đặt:", err)
+  //     }
+  //   }
+
+  // --- MERGED ---
+  // Fetch available cameras (active and available > 0)
+  // Đã thêm logic fallback từ localStorage
   useEffect(() => {
     const camerasRef = ref(db, "cameras");
 
+    const loadCamerasFromLocalStorage = () => {
+      try {
+        const savedCameras = localStorage.getItem("cameras")
+        if (savedCameras) {
+          const allCameras = JSON.parse(savedCameras)
+          setCameras(allCameras.filter((c: CameraType) => c.status === "active" && c.available > 0))
+        }
+      } catch (e) {
+        console.error("Lỗi khi tải cameras từ localStorage:", e)
+      }
+    }
+
     const unsubscribe = onValue(camerasRef, (snapshot) => {
-      const camerasData = snapshot.exists() ? snapshot.val() : {};
+      if (snapshot.exists()) {
+        const camerasData = snapshot.val();
+        const cameraList = Object.entries(camerasData)
+          .map(([id, camValue]) => {
+            const cam = camValue as Omit<CameraType, "id">;
+            return { id, ...cam };
+          })
+          // Lọc máy active VÀ còn hàng (available > 0)
+          .filter((c) => c.status === "active" && c.available > 0);
 
-      const cameraList = Object.entries(camerasData)
-        .map(([id, camValue]) => {
-          const cam = camValue as Omit<CameraType, "id">;
-          return { id, ...cam };
-        })
-        .filter((c) => c.status === "active"); 
-
-      setCameras(cameraList);
+        setCameras(cameraList);
+        try {
+          // Lưu cache vào localStorage
+          localStorage.setItem("cameras", JSON.stringify(cameraList));
+        } catch (e) {
+          console.warn("Không thể lưu cache cameras vào localStorage:", e);
+        }
+      } else {
+        console.warn("Không có data camera, thử tải từ localStorage");
+        loadCamerasFromLocalStorage(); // Fallback
+      }
+    }, (error) => {
+      console.error("Lỗi Firebase, thử tải từ localStorage:", error);
+      loadCamerasFromLocalStorage(); // Fallback
     });
 
     return () => unsubscribe();
@@ -126,7 +212,6 @@ export function PublicBooking() {
         if (!snap.exists()) return
 
         const allBookings = Object.values(snap.val())
-
         const dates: Date[] = []
 
         allBookings.forEach((b: any) => {
@@ -136,20 +221,17 @@ export function PublicBooking() {
           const start = new Date(b.startDate)
           const end = new Date(b.endDate)
 
-          // Lấy tất cả các ngày trong khoảng start → end
           const current = new Date(start)
           while (current <= end) {
             dates.push(new Date(current))
             current.setDate(current.getDate() + 1)
           }
         })
-
         setBookedDates(dates)
       } catch (err) {
         console.error("Lỗi khi tải ngày đã đặt:", err)
       }
     }
-
     fetchBookedDates()
   }, [selectedCamera])
 
@@ -250,6 +332,8 @@ export function PublicBooking() {
     setStep("confirm")
   }
 
+  // --- MERGED ---
+  // Đã thêm logic cập nhật `available` và fallback `localStorage`
   const handleConfirmSubmit = async () => {
     if (!selectedCamera || !bookingForm.startDate || !bookingForm.endDate) {
       toast({
@@ -260,40 +344,89 @@ export function PublicBooking() {
       return
     }
 
+    // Kiểm tra lại số lượng trước khi submit
+    if (selectedCamera.available <= 0) {
+      toast({
+        title: "Hết máy",
+        description: "Máy ảnh này vừa được đặt hết. Vui lòng chọn máy khác.",
+        variant: "destructive",
+      })
+      setStep("select") // Gửi trả về bước 1
+      return
+    }
+
     setIsConfirmSubmitting(true)
 
-    try {
-      const newBooking = {
-        customerName: bookingForm.customerName,
-        customerEmail: bookingForm.customerEmail,
-        customerPhone: bookingForm.customerPhone,
-        cameraId: selectedCamera.id,
-        cameraName: selectedCamera.name,
-        startDate: format(bookingForm.startDate!, "yyyy-MM-dd"),
-        endDate: format(bookingForm.endDate!, "yyyy-MM-dd"),
-        startTime: bookingForm.startTime || "",
-        endTime: bookingForm.endTime || "",
-        totalDays: calculateTotalDays(),
-        dailyRate: getPricingInfo().rate,
-        totalAmount: calculateTotalAmount(),
-        status: "pending",
-        createdAt: new Date().toISOString(),
-        notes: bookingForm.notes,
-      }
+    const newBooking = {
+      customerName: bookingForm.customerName,
+      customerEmail: bookingForm.customerEmail,
+      customerPhone: bookingForm.customerPhone,
+      cameraId: selectedCamera.id,
+      cameraName: selectedCamera.name,
+      startDate: format(bookingForm.startDate!, "yyyy-MM-dd"),
+      endDate: format(bookingForm.endDate!, "yyyy-MM-dd"),
+      startTime: bookingForm.startTime || "",
+      endTime: bookingForm.endTime || "",
+      totalDays: calculateTotalDays(),
+      dailyRate: getPricingInfo().rate,
+      totalAmount: calculateTotalAmount(),
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      notes: bookingForm.notes,
+    }
 
+    try {
+      // 1. Đẩy booking mới
       await push(ref(db, "bookings"), newBooking)
+
+      // 2. Cập nhật số lượng camera (logic từ code merger)
+      const cameraRef = ref(db, `cameras/${selectedCamera.id}`)
+      const newAvailable = selectedCamera.available - 1
+      await update(cameraRef, {
+        available: newAvailable,
+      })
+
+      // 3. Hiển thị thành công và reset
       setShowSuccess(true)
       resetForm()
       setTimeout(() => {
         window.open("https://www.facebook.com/messages/t/1294650282213798/")
       }, 1200)
+
     } catch (err) {
       console.error("Lỗi khi tạo booking:", err)
-      toast({
-        title: "Lỗi",
-        description: "Không thể hoàn tất đặt máy",
-        variant: "destructive",
-      })
+
+      // --- Fallback localStorage (từ code merger) ---
+      try {
+        const existingBookings = JSON.parse(localStorage.getItem("bookings") || "[]")
+        localStorage.setItem(
+          "bookings",
+          JSON.stringify([...existingBookings, { ...newBooking, id: Date.now().toString() }]),
+        )
+
+        // Cập nhật số lượng camera trong localStorage
+        const allCameras = JSON.parse(localStorage.getItem("cameras") || "[]")
+        const updatedAllCameras = allCameras.map((camera: CameraType) =>
+          camera.id === selectedCamera.id ? { ...camera, available: camera.available - 1 } : camera,
+        )
+        localStorage.setItem("cameras", JSON.stringify(updatedAllCameras))
+
+        // Vẫn hiển thị thành công vì đã lưu tạm
+        setShowSuccess(true)
+        resetForm()
+        setTimeout(() => {
+          window.open("https://www.facebook.com/messages/t/1294650282213798/")
+        }, 1200)
+
+      } catch (localErr) {
+        console.error("Lỗi khi lưu fallback vào localStorage:", localErr)
+        toast({
+          title: "Lỗi nghiêm trọng",
+          description: "Không thể hoàn tất đặt máy hoặc lưu tạm. Vui lòng thử lại.",
+          variant: "destructive",
+        })
+      }
+      // --- Hết Fallback ---
     } finally {
       setIsConfirmSubmitting(false)
     }
@@ -332,6 +465,7 @@ export function PublicBooking() {
     )
   }
 
+  // Fetch Payment Info (giữ nguyên của code chính)
   useEffect(() => {
     const fetchPaymentInfo = async () => {
       try {
@@ -391,6 +525,7 @@ export function PublicBooking() {
     setStepError("")
   }
 
+  // --- Giữ nguyên logic tính giá phức tạp của "code chính" ---
   const calculateTotalDays = () => {
     if (
       !bookingForm.startDate ||
@@ -469,6 +604,8 @@ export function PublicBooking() {
   const calculateTotalAmount = () => {
     return getPricingInfo().total
   }
+  // --- Hết logic tính giá ---
+
 
   return (
     <div className="space-y-6">
@@ -481,7 +618,7 @@ export function PublicBooking() {
         </p>
       </div>
 
-      {/* Progress Steps */}
+      {/* Progress Steps (Giữ nguyên của code chính) */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex justify-between">
@@ -564,7 +701,15 @@ export function PublicBooking() {
                   <p className="text-sm text-muted-foreground">{camera.specifications}</p>
                 </div>
 
+                {/* --- MERGED --- */}
+                {/* Thêm hiển thị số lượng và nút chọn */}
                 <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-full bg-muted">
+                    <div className={cn("w-2 h-2 rounded-full", camera.available > 0 ? "bg-green-500 animate-pulse" : "bg-red-500")} />
+                    <span className="text-muted-foreground">
+                      {camera.available > 0 ? `Còn ${camera.available} máy` : "Đã hết"}
+                    </span>
+                  </div>
                   <Button onClick={() => handleCameraSelect(camera)}>Chọn máy này</Button>
                 </div>
               </CardContent>
@@ -573,7 +718,7 @@ export function PublicBooking() {
         </div>
       )}
 
-      {/* Step 2: Date Selection */}
+      {/* Step 2: Date Selection (Giữ nguyên calendar phức tạp của code chính) */}
       {step === "dates" && selectedCamera && (
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
@@ -636,7 +781,7 @@ export function PublicBooking() {
                           booked: bookedDates,
                         }}
                         modifiersStyles={{
-                          booked: { backgroundColor: "#f87171", color: "white", borderRadius: "50%"},
+                          booked: { backgroundColor: "#f87171", color: "white", borderRadius: "50%" },
                         }}
                         initialFocus
                       />
@@ -693,7 +838,7 @@ export function PublicBooking() {
                           booked: bookedDates,
                         }}
                         modifiersStyles={{
-                          booked: { backgroundColor: "#f87171", color: "white", borderRadius: "50%"},
+                          booked: { backgroundColor: "#f87171", color: "white", borderRadius: "50%" },
                         }}
                         initialFocus
                       />
@@ -762,9 +907,8 @@ export function PublicBooking() {
         </Card>
       )}
 
-
-
       {/* Step 3: Customer Details */}
+
       {step === "details" && (
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
@@ -845,7 +989,7 @@ export function PublicBooking() {
         </Card>
       )}
 
-      {/* Step 4: Confirmation */}
+      {/* Step 4: Confirmation (Giữ nguyên của code chính) */}
       {step === "confirm" && selectedCamera && (
         <Card className="max-w-4xl mx-auto w-full">
           <CardHeader>
@@ -1032,7 +1176,7 @@ export function PublicBooking() {
       )}
 
 
-      {/* Success Dialog */}
+      {/* Success Dialog (Giữ nguyên của code chính) */}
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
         <DialogContent className="max-w-md text-sm font-[Be_Vietnam_Pro]">
           <DialogHeader>
@@ -1058,6 +1202,7 @@ export function PublicBooking() {
       </Dialog>
 
 
+      {/* "No cameras" message */}
       {cameras.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
