@@ -1,5 +1,6 @@
 "use client"
 
+
 import { useState, useEffect } from "react"
 import { get, ref, onValue, push } from "firebase/database"
 import { db, storage } from "@/firebase.config"
@@ -84,6 +85,8 @@ export function PublicBooking() {
   const [isConfirmSubmitting, setIsConfirmSubmitting] = useState(false)
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null)
   const [bookedDates, setBookedDates] = useState<Date[]>([])
+    const [showGallery, setShowGallery] = useState(false)
+    const [activeIndex, setActiveIndex] = useState(0)
 
   const { toast } = useToast()
   useEffect(() => {
@@ -532,46 +535,185 @@ export function PublicBooking() {
         </CardContent>
       </Card>
 
-      {/* Step 1: Camera Selection */}
-      {step === "select" && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {cameras.map((camera) => (
-            <Card key={camera.id} className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CameraIcon className="h-5 w-5 text-primary" />
-                  <div>
-                    <CardTitle className="text-lg">{camera.name}</CardTitle>
-                    <CardDescription>
-                      {camera.brand} {camera.model}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-[Be_Vietnam_Pro]">Loại máy</Label>
-                  <Badge variant="secondary">{camera.category}</Badge>
-                </div>
+          {/* Step 1: Camera Selection */}
+          {step === "select" && (
+            <>
+                                 {/* Gallery Overlay */}
+                                 {showGallery && selectedCamera && (
+                                   <div className="fixed inset-0 bg-black/95 flex flex-col items-center justify-center z-[9999] px-2 sm:px-4">
+                                     {/* Nút đóng */}
+                                     <button
+                                       onClick={() => setShowGallery(false)}
+                                       className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition text-xl"
+                                     >
+                                       ✕
+                                     </button>
 
-                <div>
-                  <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Mô tả</Label>
-                  <p className="text-sm text-muted-foreground">{camera.description}</p>
-                </div>
+                                     {/* Khung hiển thị ảnh chính */}
+                                     <div className="relative w-full max-w-5xl flex items-center justify-center mt-10 sm:mt-0">
+                                       {/* Nút trái */}
+                                       <button
+                                         onClick={() =>
+                                           setActiveIndex((prev) =>
+                                             prev > 0 ? prev - 1 : selectedCamera.images.length - 1
+                                           )
+                                         }
+                                         className="absolute -left-10 sm:-left-16 top-1/2 -translate-y-1/2 
+                                                    bg-white/30 hover:bg-white/50 text-black text-3xl
+                                                    font-bold px-4 py-2 rounded-full shadow-lg transition"
+                                       >
+                                         ‹
+                                       </button>
 
-                <div>
-                  <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Thông số</Label>
-                  <p className="text-sm text-muted-foreground">{camera.specifications}</p>
-                </div>
+                                       {/* Ảnh chính */}
+                                       <img
+                                         src={selectedCamera.images[activeIndex]}
+                                         alt="gallery"
+                                         className="max-h-[80vh] w-auto object-contain rounded-xl shadow-lg transition-all duration-300"
+                                       />
 
-                <div className="flex items-center justify-between">
-                  <Button onClick={() => handleCameraSelect(camera)}>Chọn máy này</Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                                       {/* Nút phải */}
+                                       <button
+                                         onClick={() =>
+                                           setActiveIndex((prev) =>
+                                             prev < selectedCamera.images.length - 1 ? prev + 1 : 0
+                                           )
+                                         }
+                                         className="absolute -right-10 sm:-right-16 top-1/2 -translate-y-1/2 
+                                                    bg-white/30 hover:bg-white/50 text-black text-3xl
+                                                    font-bold px-4 py-2 rounded-full shadow-lg transition"
+                                       >
+                                         ›
+                                       </button>
+                                     </div>
+
+                                     {/* Thanh thumbnail */}
+                                     <div className="flex gap-2 mt-4 overflow-x-auto pb-3 max-w-full justify-center">
+                                       {selectedCamera.images.map((img, idx) => (
+                                         <img
+                                           key={idx}
+                                           src={img}
+                                           onClick={() => setActiveIndex(idx)}
+                                           alt={`thumb-${idx}`}
+                                           className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md cursor-pointer border-2 transition ${
+                                             activeIndex === idx
+                                               ? "border-white opacity-100"
+                                               : "border-transparent opacity-60 hover:opacity-100"
+                                           }`}
+                                         />
+                                       ))}
+                                     </div>
+                                   </div>
+                                 )}
+
+
+              {/* Camera list */}
+              <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {cameras.map((camera) => {
+                  const imageCount = camera.images?.length || 0
+                  const visibleImages = camera.images?.slice(0, 3) || []
+                  const extraCount = imageCount > 3 ? imageCount - 3 : 0
+
+                  return (
+                    <Card
+                      key={camera.id}
+                      className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col"
+                      onClick={() => handleCameraSelect(camera)}
+                    >
+                      {/* Image preview */}
+                      <div className="grid grid-cols-3 gap-1 p-2">
+                        {visibleImages.length > 0 ? (
+                          visibleImages.map((img, idx) => (
+                            <div
+                              key={idx}
+                              className="relative aspect-square overflow-hidden rounded-md"
+                            >
+                              <img
+                                src={img}
+                                alt={`Ảnh ${idx + 1}`}
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                              />
+                              {/* Nếu là ảnh cuối + còn ảnh ẩn thì hiển thị nút +X */}
+                              {idx === 2 && extraCount > 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedCamera(camera)
+                                    setShowGallery(true)
+                                    setActiveIndex(0)
+                                  }}
+                                  className="absolute inset-0 bg-black/60 text-white text-xl font-semibold flex items-center justify-center rounded-md hover:bg-black/70 transition"
+                                >
+                                  +{extraCount}
+                                </button>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-3 h-32 bg-muted flex items-center justify-center rounded-md">
+                            <CameraIcon className="h-10 w-10 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center gap-2">
+                          <CameraIcon className="h-5 w-5 text-primary" />
+                          <div>
+                            <CardTitle className="text-lg font-semibold">{camera.name}</CardTitle>
+                            <CardDescription className="text-sm text-muted-foreground">
+                              {camera.brand} {camera.model}
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3 flex-1">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-[Be_Vietnam_Pro]">Loại máy</Label>
+                          <Badge variant="secondary">{camera.category}</Badge>
+                        </div>
+
+                        {camera.description && (
+                          <div>
+                            <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Mô tả</Label>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {camera.description}
+                            </p>
+                          </div>
+                        )}
+
+                        {camera.specifications && (
+                          <div>
+                            <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Thông số</Label>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {camera.specifications}
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+
+                      <div className="p-4 pt-0">
+                        <Button
+                          variant="default"
+                          className="w-full"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCameraSelect(camera)
+                          }}
+                        >
+                          Chọn máy này
+                        </Button>
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            </>
+          )}
+
+
+
 
       {/* Step 2: Date Selection */}
       {step === "dates" && selectedCamera && (
