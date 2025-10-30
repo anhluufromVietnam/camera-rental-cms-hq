@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app"
+import { initializeApp, getApps, getApp } from "firebase/app"
 import { getDatabase, type Database } from "firebase/database"
 import { getStorage, type FirebaseStorage } from "firebase/storage"
 
@@ -13,8 +13,9 @@ const firebaseConfig = {
   measurementId: "G-M7NGSE56VF",
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig)
+// ✅ Kiểm tra nếu app đã được khởi tạo, dùng lại app cũ — tránh duplicate
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
+
 export const database: Database = getDatabase(app)
 export const storage: FirebaseStorage = getStorage(app)
 
