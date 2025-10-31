@@ -595,8 +595,8 @@ export function PublicBooking() {
                     onClick={() => setActiveIndex(idx)}
                     alt={`thumb-${idx}`}
                     className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md cursor-pointer border-2 transition ${activeIndex === idx
-                        ? "border-white opacity-100"
-                        : "border-transparent opacity-60 hover:opacity-100"
+                      ? "border-white opacity-100"
+                      : "border-transparent opacity-60 hover:opacity-100"
                       }`}
                   />
                 ))}
@@ -730,7 +730,7 @@ export function PublicBooking() {
 
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="block mb-1 text-sm font-medium">Ngày bắt đầu</Label>
+                <Label className="block mb-1 text-sm font-medium " >Ngày bắt đầu</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
@@ -741,7 +741,7 @@ export function PublicBooking() {
                           : "Chọn ngày"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900">
                       <Calendar
                         mode="single"
                         selected={bookingForm.startDate || undefined}
@@ -783,7 +783,7 @@ export function PublicBooking() {
                     <SelectTrigger>
                       <SelectValue placeholder="Giờ nhận" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white dark:bg-gray-900">
                       <SelectItem value="08:00">08:00 sáng</SelectItem>
                       <SelectItem value="10:00">10:00 sáng</SelectItem>
                       <SelectItem value="12:00">12:00 trưa</SelectItem>
@@ -804,7 +804,7 @@ export function PublicBooking() {
                           : "Chọn ngày"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900">
                       <Calendar
                         mode="single"
                         selected={bookingForm.endDate || undefined}
@@ -843,7 +843,7 @@ export function PublicBooking() {
                     <SelectTrigger>
                       <SelectValue placeholder="Giờ trả" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white dark:bg-gray-900">
                       <SelectItem value="14:00">14:00 chiều</SelectItem>
                       <SelectItem value="16:00">16:00 chiều</SelectItem>
                       <SelectItem value="18:00">18:00 chiều</SelectItem>

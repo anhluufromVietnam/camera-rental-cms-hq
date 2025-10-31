@@ -318,7 +318,7 @@ export function OrderManagement() {
       confirmed: bookings.filter((b) => b.status === "confirmed").length,
       active: bookings.filter((b) => b.status === "active").length,
       completed: bookings.filter((b) => b.status === "completed").length,
-      overtime: bookings.filter((b) => b.status === "overtime").length, 
+      overtime: bookings.filter((b) => b.status === "overtime").length,
       cancelled: bookings.filter((b) => b.status === "cancelled").length,
     }
   }, [bookings])
@@ -447,7 +447,7 @@ export function OrderManagement() {
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Lọc theo trạng thái" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white dark:bg-gray-900">
             <SelectItem value="all">Tất cả trạng thái</SelectItem>
             <SelectItem value="pending">Chờ xác nhận</SelectItem>
             <SelectItem value="confirmed">Đã xác nhận</SelectItem>
@@ -696,7 +696,7 @@ export function OrderManagement() {
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white dark:bg-gray-900">
                   <SelectItem value="pending">Chờ xác nhận</SelectItem>
                   <SelectItem value="confirmed">Đã xác nhận</SelectItem>
                   <SelectItem value="active">Đang thuê</SelectItem>
