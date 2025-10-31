@@ -115,11 +115,7 @@ export function SettingsImage() {
       await fetchSettings()
 
       setSuccessDialog(true) 
-      toast({
-        title: "Thành công",
-        description: "Cài đặt thanh toán đã được lưu",
-        variant: "default",
-      })
+  
     } catch (err) {
       console.error("Error saving settings:", err)
     } finally {
@@ -356,3 +352,4 @@ export function SettingsImage() {
     </>
   )
 }
+
