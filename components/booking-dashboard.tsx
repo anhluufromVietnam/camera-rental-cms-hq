@@ -240,7 +240,7 @@ export function BookingDashboard() {
           </CardContent>
         </Card>
 
-        <Card>  
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Quá hạn</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -280,7 +280,7 @@ export function BookingDashboard() {
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Lọc theo trạng thái" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-white dark:bg-gray-900">
               <SelectItem value="all">Tất cả trạng thái</SelectItem>
               {BOOKING_STATUSES.map((status) => (
                 <SelectItem key={status.value} value={status.value}>
@@ -294,7 +294,7 @@ export function BookingDashboard() {
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Lọc theo ngày" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-white dark:bg-gray-900">
               <SelectItem value="all">Tất cả</SelectItem>
               <SelectItem value="today">Hôm nay</SelectItem>
               <SelectItem value="week">Tuần này</SelectItem>
@@ -336,9 +336,9 @@ export function BookingDashboard() {
                     <p className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
                       {new Date(booking.startDate).toLocaleDateString("vi-VN")} →{" "}
-                      {new Date(booking.endDate).toLocaleDateString("vi-VN")}             
+                      {new Date(booking.endDate).toLocaleDateString("vi-VN")}
                     </p>
-                     <p className="flex items-center gap-1">
+                    <p className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
                       Giờ nhận: {booking.startTime} - Giờ trả: {booking.endTime}
                     </p>

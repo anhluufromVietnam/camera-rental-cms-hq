@@ -266,7 +266,7 @@ export function CameraManagement() {
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white dark:bg-gray-900">
                     <SelectItem value="ondayRate">Trong ngày</SelectItem>
                     <SelectItem value="fullDayRate">1 ngày</SelectItem>
                     <SelectItem value="threeDaysRate">3 ngày</SelectItem>
@@ -412,7 +412,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
           <Label>Loại máy ảnh</Label>
           <Select value={formData.category} onValueChange={v => setFormData(p => ({ ...p, category: v }))}>
             <SelectTrigger><SelectValue placeholder="Chọn loại" /></SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-white dark:bg-gray-900">
               {CAMERA_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -483,7 +483,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
         <Label>Trạng thái</Label>
         <Select value={formData.status} onValueChange={v => setFormData(p => ({ ...p, status: v as any }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white dark:bg-gray-900">
             <SelectItem value="active">Hoạt động</SelectItem>
             <SelectItem value="maintenance">Bảo trì</SelectItem>
             <SelectItem value="retired">Ngừng hoạt động</SelectItem>
