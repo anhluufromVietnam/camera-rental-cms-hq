@@ -7,6 +7,7 @@ import { CameraManagement } from "@/components/camera-management"
 import { BookingDashboard } from "@/components/booking-dashboard"
 import { CalendarView } from "@/components/calendar-view"
 import { OrderManagement } from "@/components/order-management"
+import { SettingsImage } from "@/components/settings-image"
 import { GalleryManagement } from "@/components/gallery-management"
 import { Camera, Calendar, Package, Settings, LogOut, ImageIcon } from "lucide-react"
 
@@ -110,6 +111,13 @@ export default function AdminDashboard() {
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Quản lý</span>
               </TabsTrigger>
+              <TabsTrigger
+                value="settings"
+                className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Cài đặt</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="cameras">
@@ -130,6 +138,10 @@ export default function AdminDashboard() {
 
             <TabsContent value="orders">
               <OrderManagement />
+            </TabsContent>
+            
+            <TabsContent value="settings">
+              <SettingsImage />
             </TabsContent>
           </Tabs>
         </div>

@@ -17,7 +17,7 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
-  Calendar as CalendarIcon,
+  Calendar,
   Clock,
   User,
   Camera,
@@ -128,8 +128,10 @@ export function CalendarView() {
             }
           }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
         } else {
-          b.__logs = []
+          b.__logs = [];
         }
+
+
         return b
       })
       setBookings(list)
@@ -565,7 +567,7 @@ export function CalendarView() {
                               {isNaN(date.getTime()) ? "—" : format(date, "HH:mm dd/MM")}
                             </span>
                           </div>
-                        )
+                        );
                       })}
                     </div>
                   </div>
