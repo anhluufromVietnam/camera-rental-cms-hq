@@ -7,8 +7,8 @@ import { CameraManagement } from "@/components/camera-management"
 import { BookingDashboard } from "@/components/booking-dashboard"
 import { CalendarView } from "@/components/calendar-view"
 import { OrderManagement } from "@/components/order-management"
-import { SettingsImage } from "@/components/settings-image"
-import { Camera, Calendar, Package, Settings, LogOut } from "lucide-react"
+import { GalleryManagement } from "@/components/gallery-management"
+import { Camera, Calendar, Package, Settings, LogOut, ImageIcon } from "lucide-react"
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -74,13 +74,13 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8">
         <div className="glass-card rounded-3xl p-6">
           <Tabs defaultValue="cameras" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
+            <TabsList className="grid w-full grid-cols-5 glass p-2 h-auto gap-2">
               <TabsTrigger
                 value="cameras"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
               >
                 <Camera className="h-4 w-4" />
-                <span className="hidden sm:inline">Quản lý máy ảnh</span>
+                <span className="hidden sm:inline">Máy ảnh</span>
               </TabsTrigger>
               <TabsTrigger
                 value="bookings"
@@ -97,18 +97,18 @@ export default function AdminDashboard() {
                 <span className="hidden sm:inline">Lịch</span>
               </TabsTrigger>
               <TabsTrigger
+                value="gallery"
+                className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
+              >
+                <ImageIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Gallery</span>
+              </TabsTrigger>
+              <TabsTrigger
                 value="orders"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
               >
                 <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Quản lý đơn</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="settings"
-                className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
-              >
-                <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Cài đặt</span>
+                <span className="hidden sm:inline">Quản lý</span>
               </TabsTrigger>
             </TabsList>
 
@@ -124,12 +124,12 @@ export default function AdminDashboard() {
               <CalendarView />
             </TabsContent>
 
+            <TabsContent value="gallery">
+              <GalleryManagement />
+            </TabsContent>
+
             <TabsContent value="orders">
               <OrderManagement />
-            </TabsContent>
-            
-            <TabsContent value="settings">
-              <SettingsImage />
             </TabsContent>
           </Tabs>
         </div>

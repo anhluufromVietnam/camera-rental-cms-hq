@@ -1,9 +1,8 @@
 "use client"
 
-
 import { useState, useEffect } from "react"
 import { get, ref, onValue, push } from "firebase/database"
-import { db, storage } from "@/firebase.config"
+import { db } from "@/firebase.config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,14 +13,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
-import { CameraIcon, CalendarIcon, Clock, Check, Mail, User, BrickWallIcon } from "lucide-react"
+import { CameraIcon, CalendarIcon, Clock, Check, Mail, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
-import { Be_Vietnam_Pro, Inter, Manrope } from "next/font/google"
-
 
 interface CameraType {
   id: string
@@ -38,6 +35,7 @@ interface CameraType {
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
+  images?: string[]
 }
 
 interface BookingForm {
@@ -81,14 +79,15 @@ export function PublicBooking() {
   const [step, setStep] = useState<"select" | "dates" | "details" | "confirm">("select")
   const [showSuccess, setShowSuccess] = useState(false)
   const [stepError, setStepError] = useState("")
-  const [_, setPhoneError] = useState<string>("")
+  const [phoneError, setPhoneError] = useState<string>("")
   const [isConfirmSubmitting, setIsConfirmSubmitting] = useState(false)
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null)
   const [bookedDates, setBookedDates] = useState<Date[]>([])
-    const [showGallery, setShowGallery] = useState(false)
-    const [activeIndex, setActiveIndex] = useState(0)
+  const [showGallery, setShowGallery] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
 
   const { toast } = useToast()
+
   useEffect(() => {
     if (!showSuccess) return
     const timer = setTimeout(() => {
@@ -100,24 +99,23 @@ export function PublicBooking() {
 
   // Fetch available cameras (only active ones)
   useEffect(() => {
-    const camerasRef = ref(db, "cameras");
+    const camerasRef = ref(db, "cameras")
 
     const unsubscribe = onValue(camerasRef, (snapshot) => {
-      const camerasData = snapshot.exists() ? snapshot.val() : {};
+      const camerasData = snapshot.exists() ? snapshot.val() : {}
 
       const cameraList = Object.entries(camerasData)
         .map(([id, camValue]) => {
-          const cam = camValue as Omit<CameraType, "id">;
-          return { id, ...cam };
+          const cam = camValue as Omit<CameraType, "id">
+          return { id, ...cam }
         })
-        .filter((c) => c.status === "active"); 
+        .filter((c) => c.status === "active")
 
-      setCameras(cameraList);
-    });
+      setCameras(cameraList)
+    })
 
-    return () => unsubscribe();
-  }, []);
-
+    return () => unsubscribe()
+  }, [])
 
   // Fetch booked dates for the selected camera
   useEffect(() => {
@@ -167,6 +165,15 @@ export function PublicBooking() {
       toast({
         title: "Lỗi",
         description: "Vui lòng chọn ngày bắt đầu và ngày kết thúc.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!bookingForm.startTime || !bookingForm.endTime) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng chọn giờ nhận và giờ trả.",
         variant: "destructive",
       })
       return
@@ -230,9 +237,8 @@ export function PublicBooking() {
     setStep("details")
   }
 
-
   const handleDetailsSubmit = () => {
-    if (!bookingForm.customerName || !bookingForm.customerPhone) {
+    if (!bookingForm.customerName || !bookingForm.customerPhone || !bookingForm.customerEmail) {
       toast({
         title: "Thiếu thông tin",
         description: "Vui lòng nhập đầy đủ thông tin khách hàng",
@@ -241,10 +247,23 @@ export function PublicBooking() {
       return
     }
 
-    if (!selectedCamera) {
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(bookingForm.customerEmail)) {
       toast({
-        title: "Thiếu thông tin",
-        description: "Vui lòng tải lên ảnh xác nhận thanh toán",
+        title: "Email không hợp lệ",
+        description: "Vui lòng nhập địa chỉ email hợp lệ",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate phone
+    const phoneRegex = /^[0-9]{9,11}$/
+    if (!phoneRegex.test(bookingForm.customerPhone)) {
+      toast({
+        title: "Số điện thoại không hợp lệ",
+        description: "Số điện thoại phải có từ 9-11 chữ số",
         variant: "destructive",
       })
       return
@@ -272,8 +291,8 @@ export function PublicBooking() {
         customerPhone: bookingForm.customerPhone,
         cameraId: selectedCamera.id,
         cameraName: selectedCamera.name,
-        startDate: format(bookingForm.startDate!, "yyyy-MM-dd"),
-        endDate: format(bookingForm.endDate!, "yyyy-MM-dd"),
+        startDate: format(bookingForm.startDate, "yyyy-MM-dd"),
+        endDate: format(bookingForm.endDate, "yyyy-MM-dd"),
         startTime: bookingForm.startTime || "",
         endTime: bookingForm.endTime || "",
         totalDays: calculateTotalDays(),
@@ -288,7 +307,7 @@ export function PublicBooking() {
       setShowSuccess(true)
       resetForm()
       setTimeout(() => {
-        window.open("https://www.facebook.com/messages/t/1294650282213798/")
+        window.open("https://www.facebook.com/messages/t/1294650282213798/", "_blank")
       }, 1200)
     } catch (err) {
       console.error("Lỗi khi tạo booking:", err)
@@ -308,12 +327,16 @@ export function PublicBooking() {
       cameraId: "",
       startDate: null,
       endDate: null,
+      startTime: "",
+      endTime: "",
       customerName: "",
       customerEmail: "",
       customerPhone: "",
       notes: "",
     })
     setStep("select")
+    setPhoneError("")
+    setStepError("")
   }
 
   const isFormValid = () => {
@@ -322,7 +345,9 @@ export function PublicBooking() {
       bookingForm.customerEmail &&
       bookingForm.customerPhone &&
       bookingForm.startDate &&
-      bookingForm.endDate
+      bookingForm.endDate &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail) &&
+      /^[0-9]{9,11}$/.test(bookingForm.customerPhone)
     )
   }
 
@@ -339,22 +364,16 @@ export function PublicBooking() {
     const fetchPaymentInfo = async () => {
       try {
         const snapshot = await get(ref(db, "settings"))
-        console.log("✅ Snapshot exists:", snapshot.exists())
-        console.log("📦 Snapshot value:", snapshot.val())
-
         if (snapshot.exists()) {
           setPaymentInfo(snapshot.val() as PaymentInfo)
-        } else {
-          console.warn("⚠️ Không tìm thấy dữ liệu trong /settings")
         }
       } catch (error) {
-        console.error("❌ Lỗi khi lấy payment info:", error)
+        console.error("Lỗi khi lấy payment info:", error)
       }
     }
 
     fetchPaymentInfo()
   }, [])
-
 
   const stepsConfig = [
     { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
@@ -365,9 +384,9 @@ export function PublicBooking() {
 
   const validateStep = (key: (typeof stepsConfig)[number]["key"]) => {
     if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
-    if (key === "dates" && (!isDayValid()))
+    if (key === "dates" && !isDayValid())
       return "Vui lòng chọn ngày thuê và ngày trả"
-    if (key === "confirm" && !isFormValid())
+    if (key === "details" && !isFormValid())
       return "Vui lòng điền đầy đủ thông tin"
     return ""
   }
@@ -401,15 +420,15 @@ export function PublicBooking() {
       !bookingForm.startTime ||
       !bookingForm.endTime
     ) {
-      return 0;
+      return 0
     }
 
     const diffDate = Math.ceil(
       (normalizeDate(bookingForm.endDate).getTime() - normalizeDate(bookingForm.startDate).getTime()) /
       (1000 * 60 * 60 * 24)
-    ) + 1;
-    return diffDate;
-  };
+    ) + 1
+    return diffDate
+  }
 
   const calculateTotalHours = () => {
     if (
@@ -418,56 +437,53 @@ export function PublicBooking() {
       !bookingForm.startTime ||
       !bookingForm.endTime
     ) {
-      return 0;
+      return 0
     }
 
-    const [sh, sm] = bookingForm.startTime.split(":").map(Number);
-    const [eh, em] = bookingForm.endTime.split(":").map(Number);
+    const [sh, sm] = bookingForm.startTime.split(":").map(Number)
+    const [eh, em] = bookingForm.endTime.split(":").map(Number)
 
-    const startDateTime = new Date(bookingForm.startDate);
-    startDateTime.setHours(sh, sm, 0, 0);
+    const startDateTime = new Date(bookingForm.startDate)
+    startDateTime.setHours(sh, sm, 0, 0)
 
-    const endDateTime = new Date(bookingForm.endDate);
-    endDateTime.setHours(eh, em, 0, 0);
+    const endDateTime = new Date(bookingForm.endDate)
+    endDateTime.setHours(eh, em, 0, 0)
 
     if (endDateTime <= startDateTime) {
-      return 0;
+      return 0
     }
 
-    const diffHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
-    return diffHours;
-  };
+    const diffHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60)
+    return diffHours
+  }
 
   const getPricingInfo = () => {
-    const hours = calculateTotalHours();
-    console.log("Hours received in getPricingInfo:", hours);
-    if (hours === null || hours === undefined || !selectedCamera) {
-      return { rate: 0, label: "", total: 0 };
+    const hours = calculateTotalHours()
+    if (hours === null || hours === undefined || hours === 0 || !selectedCamera) {
+      return { rate: 0, label: "", total: 0 }
     }
-    let rate: number;
-    let label: string;
+    let rate: number
+    let label: string
 
     if (hours >= 120 && selectedCamera.fiveDaysRate > 0) {
-      rate = selectedCamera.fiveDaysRate;
-      label = "5 ngày trở lên";
+      rate = selectedCamera.fiveDaysRate
+      label = "5 ngày trở lên"
     } else if (hours >= 72 && selectedCamera.threeDaysRate > 0) {
-      rate = selectedCamera.threeDaysRate;
-      label = "3 ngày trở lên";
+      rate = selectedCamera.threeDaysRate
+      label = "3 ngày trở lên"
     } else if (hours >= 24 && selectedCamera.fullDayRate > 0) {
-      rate = selectedCamera.fullDayRate;
-      label = "1 ngày trở lên";
+      rate = selectedCamera.fullDayRate
+      label = "1 ngày trở lên"
     } else {
-      rate = selectedCamera.ondayRate || 0;
-      label = "Trong ngày";
+      rate = selectedCamera.ondayRate || 0
+      label = "Trong ngày"
     }
 
-    const days = Math.ceil(hours / 24);
-    const total = days * rate;
+    const days = Math.ceil(hours / 24)
+    const total = days * rate
 
-    console.log("Pricing Info:", { rate, label, total, days });
-    return { rate, label, total };
-  };
-
+    return { rate, label, total }
+  }
 
   const calculateTotalAmount = () => {
     return getPricingInfo().total
@@ -476,9 +492,7 @@ export function PublicBooking() {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-3xl font-[Be_Vietnam_Pro] text-foreground mb-2">
-          Đặt thuê máy ảnh
-        </h2>
+        <h2 className="text-3xl font-bold text-foreground mb-2">Đặt thuê máy ảnh</h2>
         <p className="text-muted-foreground">
           Chọn máy ảnh và thời gian thuê phù hợp với nhu cầu của bạn
         </p>
@@ -491,8 +505,7 @@ export function PublicBooking() {
             {stepsConfig.map((stepItem, index) => {
               const Icon = stepItem.icon
               const isActive = step === stepItem.key
-              const isCompleted =
-                stepsConfig.findIndex((s) => s.key === step) > index
+              const isCompleted = stepsConfig.findIndex((s) => s.key === step) > index
 
               return (
                 <div
@@ -518,9 +531,7 @@ export function PublicBooking() {
                   <div
                     className={cn(
                       "mt-2 text-sm font-medium",
-                      isActive
-                        ? "text-primary"
-                        : "text-muted-foreground hover:text-primary"
+                      isActive ? "text-primary" : "text-muted-foreground hover:text-primary"
                     )}
                   >
                     {stepItem.label}
@@ -529,191 +540,169 @@ export function PublicBooking() {
               )
             })}
           </div>
-          {stepError && (
-            <p className="text-sm text-red-500 text-center mt-4">{stepError}</p>
-          )}
+          {stepError && <p className="text-sm text-red-500 text-center mt-4">{stepError}</p>}
         </CardContent>
       </Card>
 
-          {/* Step 1: Camera Selection */}
-          {step === "select" && (
-            <>
-                                 {/* Gallery Overlay */}
-                                 {showGallery && selectedCamera && (
-                                   <div className="fixed inset-0 bg-black/95 flex flex-col items-center justify-center z-[9999] px-2 sm:px-4">
-                                     {/* Nút đóng */}
-                                     <button
-                                       onClick={() => setShowGallery(false)}
-                                       className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition text-xl"
-                                     >
-                                       ✕
-                                     </button>
+      {/* Step 1: Camera Selection */}
+      {step === "select" && (
+        <>
+          {/* Gallery Overlay */}
+          {showGallery && selectedCamera && selectedCamera.images && selectedCamera.images.length > 0 && (
+            <div className="fixed inset-0 bg-black/95 flex flex-col items-center justify-center z-[9999] px-2 sm:px-4">
+              <button
+                onClick={() => setShowGallery(false)}
+                className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition text-xl"
+              >
+                ✕
+              </button>
 
-                                     {/* Khung hiển thị ảnh chính */}
-                                     <div className="relative w-full max-w-5xl flex items-center justify-center mt-10 sm:mt-0">
-                                       {/* Nút trái */}
-                                       <button
-                                         onClick={() =>
-                                           setActiveIndex((prev) =>
-                                             prev > 0 ? prev - 1 : selectedCamera.images.length - 1
-                                           )
-                                         }
-                                         className="absolute -left-10 sm:-left-16 top-1/2 -translate-y-1/2 
-                                                    bg-white/30 hover:bg-white/50 text-black text-3xl
-                                                    font-bold px-4 py-2 rounded-full shadow-lg transition"
-                                       >
-                                         ‹
-                                       </button>
+              <div className="relative w-full max-w-5xl flex items-center justify-center mt-10 sm:mt-0">
+                <button
+                  onClick={() =>
+                    setActiveIndex((prev) =>
+                      prev > 0 ? prev - 1 : (selectedCamera.images?.length || 1) - 1
+                    )
+                  }
+                  className="absolute -left-10 sm:-left-16 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 text-black text-3xl font-bold px-4 py-2 rounded-full shadow-lg transition"
+                >
+                  ‹
+                </button>
 
-                                       {/* Ảnh chính */}
-                                       <img
-                                         src={selectedCamera.images[activeIndex]}
-                                         alt="gallery"
-                                         className="max-h-[80vh] w-auto object-contain rounded-xl shadow-lg transition-all duration-300"
-                                       />
+                <img
+                  src={selectedCamera.images[activeIndex]}
+                  alt="gallery"
+                  className="max-h-[80vh] w-auto object-contain rounded-xl shadow-lg transition-all duration-300"
+                />
 
-                                       {/* Nút phải */}
-                                       <button
-                                         onClick={() =>
-                                           setActiveIndex((prev) =>
-                                             prev < selectedCamera.images.length - 1 ? prev + 1 : 0
-                                           )
-                                         }
-                                         className="absolute -right-10 sm:-right-16 top-1/2 -translate-y-1/2 
-                                                    bg-white/30 hover:bg-white/50 text-black text-3xl
-                                                    font-bold px-4 py-2 rounded-full shadow-lg transition"
-                                       >
-                                         ›
-                                       </button>
-                                     </div>
-
-                                     {/* Thanh thumbnail */}
-                                     <div className="flex gap-2 mt-4 overflow-x-auto pb-3 max-w-full justify-center">
-                                       {selectedCamera.images.map((img, idx) => (
-                                         <img
-                                           key={idx}
-                                           src={img}
-                                           onClick={() => setActiveIndex(idx)}
-                                           alt={`thumb-${idx}`}
-                                           className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md cursor-pointer border-2 transition ${
-                                             activeIndex === idx
-                                               ? "border-white opacity-100"
-                                               : "border-transparent opacity-60 hover:opacity-100"
-                                           }`}
-                                         />
-                                       ))}
-                                     </div>
-                                   </div>
-                                 )}
-
-
-              {/* Camera list */}
-              <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {cameras.map((camera) => {
-                  const imageCount = camera.images?.length || 0
-                  const visibleImages = camera.images?.slice(0, 3) || []
-                  const extraCount = imageCount > 3 ? imageCount - 3 : 0
-
-                  return (
-                    <Card
-                      key={camera.id}
-                      className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col"
-                      onClick={() => handleCameraSelect(camera)}
-                    >
-                      {/* Image preview */}
-                      <div className="grid grid-cols-3 gap-1 p-2">
-                        {visibleImages.length > 0 ? (
-                          visibleImages.map((img, idx) => (
-                            <div
-                              key={idx}
-                              className="relative aspect-square overflow-hidden rounded-md"
-                            >
-                              <img
-                                src={img}
-                                alt={`Ảnh ${idx + 1}`}
-                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                              />
-                              {/* Nếu là ảnh cuối + còn ảnh ẩn thì hiển thị nút +X */}
-                              {idx === 2 && extraCount > 0 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setSelectedCamera(camera)
-                                    setShowGallery(true)
-                                    setActiveIndex(0)
-                                  }}
-                                  className="absolute inset-0 bg-black/60 text-white text-xl font-semibold flex items-center justify-center rounded-md hover:bg-black/70 transition"
-                                >
-                                  +{extraCount}
-                                </button>
-                              )}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="col-span-3 h-32 bg-muted flex items-center justify-center rounded-md">
-                            <CameraIcon className="h-10 w-10 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center gap-2">
-                          <CameraIcon className="h-5 w-5 text-primary" />
-                          <div>
-                            <CardTitle className="text-lg font-semibold">{camera.name}</CardTitle>
-                            <CardDescription className="text-sm text-muted-foreground">
-                              {camera.brand} {camera.model}
-                            </CardDescription>
-                          </div>
-                        </div>
-                      </CardHeader>
-
-                      <CardContent className="space-y-3 flex-1">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-[Be_Vietnam_Pro]">Loại máy</Label>
-                          <Badge variant="secondary">{camera.category}</Badge>
-                        </div>
-
-                        {camera.description && (
-                          <div>
-                            <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Mô tả</Label>
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {camera.description}
-                            </p>
-                          </div>
-                        )}
-
-                        {camera.specifications && (
-                          <div>
-                            <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Thông số</Label>
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {camera.specifications}
-                            </p>
-                          </div>
-                        )}
-                      </CardContent>
-
-                      <div className="p-4 pt-0">
-                        <Button
-                          variant="default"
-                          className="w-full"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleCameraSelect(camera)
-                          }}
-                        >
-                          Chọn máy này
-                        </Button>
-                      </div>
-                    </Card>
-                  )
-                })}
+                <button
+                  onClick={() =>
+                    setActiveIndex((prev) =>
+                      prev < (selectedCamera.images?.length || 1) - 1 ? prev + 1 : 0
+                    )
+                  }
+                  className="absolute -right-10 sm:-right-16 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 text-black text-3xl font-bold px-4 py-2 rounded-full shadow-lg transition"
+                >
+                  ›
+                </button>
               </div>
-            </>
+
+              <div className="flex gap-2 mt-4 overflow-x-auto pb-3 max-w-full justify-center">
+                {selectedCamera.images.map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={img}
+                    onClick={() => setActiveIndex(idx)}
+                    alt={`thumb-${idx}`}
+                    className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md cursor-pointer border-2 transition ${activeIndex === idx
+                        ? "border-white opacity-100"
+                        : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
+                  />
+                ))}
+              </div>
+            </div>
           )}
 
+          {/* Camera list */}
+          <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {cameras.map((camera) => {
+              const imageCount = camera.images?.length || 0
+              const visibleImages = camera.images?.slice(0, 3) || []
+              const extraCount = imageCount > 3 ? imageCount - 3 : 0
 
+              return (
+                <Card
+                  key={camera.id}
+                  className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col"
+                  onClick={() => handleCameraSelect(camera)}
+                >
+                  <div className="grid grid-cols-3 gap-1 p-2">
+                    {visibleImages.length > 0 ? (
+                      visibleImages.map((img, idx) => (
+                        <div key={idx} className="relative aspect-square overflow-hidden rounded-md">
+                          <img
+                            src={img}
+                            alt={`Ảnh ${idx + 1}`}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          />
+                          {idx === 2 && extraCount > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedCamera(camera)
+                                setShowGallery(true)
+                                setActiveIndex(0)
+                              }}
+                              className="absolute inset-0 bg-black/60 text-white text-xl font-semibold flex items-center justify-center rounded-md hover:bg-black/70 transition"
+                            >
+                              +{extraCount}
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="col-span-3 h-32 bg-muted flex items-center justify-center rounded-md">
+                        <CameraIcon className="h-10 w-10 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
 
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <CameraIcon className="h-5 w-5 text-primary" />
+                      <div>
+                        <CardTitle className="text-lg font-semibold">{camera.name}</CardTitle>
+                        <CardDescription className="text-sm text-muted-foreground">
+                          {camera.brand} {camera.model}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-3 flex-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Loại máy</Label>
+                      <Badge variant="secondary">{camera.category}</Badge>
+                    </div>
+
+                    {camera.description && (
+                      <div>
+                        <Label className="block mb-1 text-sm font-medium">Mô tả</Label>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {camera.description}
+                        </p>
+                      </div>
+                    )}
+
+                    {camera.specifications && (
+                      <div>
+                        <Label className="block mb-1 text-sm font-medium">Thông số</Label>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {camera.specifications}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+
+                  <div className="p-4 pt-0">
+                    <Button
+                      variant="default"
+                      className="w-full"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCameraSelect(camera)
+                      }}
+                    >
+                      Chọn máy này
+                    </Button>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       {/* Step 2: Date Selection */}
       {step === "dates" && selectedCamera && (
@@ -727,8 +716,6 @@ export function PublicBooking() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-
-            {/* 🟢 Legend hướng dẫn */}
             <div className="flex items-center justify-center w-full gap-3 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-primary rounded-sm" /> <span>Ngày đã chọn</span>
@@ -741,15 +728,13 @@ export function PublicBooking() {
               </div>
             </div>
 
-            {/* 📅 Grid chọn ngày bắt đầu và kết thúc */}
             <div className="grid md:grid-cols-2 gap-6">
-              {/* ---- Ngày bắt đầu ---- */}
               <div className="space-y-2">
-                <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ngày bắt đầu</Label>
+                <Label className="block mb-1 text-sm font-medium">Ngày bắt đầu</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left bg-transparent">
+                      <Button variant="outline" className="w-full justify-start text-left">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {bookingForm.startDate
                           ? new Date(bookingForm.startDate).toLocaleDateString("vi-VN")
@@ -770,15 +755,19 @@ export function PublicBooking() {
                         disabled={(date) => {
                           const isBooked = bookedDates.some(
                             (d) => d.toDateString() === date.toDateString()
-                          );
-                          const isPast = date < new Date();
-                          return isBooked || isPast;
+                          )
+                          const isPast = date < new Date(new Date().setHours(0, 0, 0, 0))
+                          return isBooked || isPast
                         }}
                         modifiers={{
                           booked: bookedDates,
                         }}
                         modifiersStyles={{
-                          booked: { backgroundColor: "#f87171", color: "white", borderRadius: "50%"},
+                          booked: {
+                            backgroundColor: "#f87171",
+                            color: "white",
+                            borderRadius: "50%",
+                          },
                         }}
                         initialFocus
                       />
@@ -803,13 +792,12 @@ export function PublicBooking() {
                 </div>
               </div>
 
-              {/* ---- Ngày kết thúc ---- */}
               <div className="space-y-2">
-                <Label className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ngày kết thúc</Label>
+                <Label className="block mb-1 text-sm font-medium">Ngày kết thúc</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left bg-transparent">
+                      <Button variant="outline" className="w-full justify-start text-left">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {bookingForm.endDate
                           ? new Date(bookingForm.endDate).toLocaleDateString("vi-VN")
@@ -825,17 +813,21 @@ export function PublicBooking() {
                         }
                         disabled={(date) => {
                           const isBeforeStart =
-                            bookingForm.startDate && date < bookingForm.startDate;
+                            bookingForm.startDate && date < bookingForm.startDate
                           const isBooked = bookedDates.some(
                             (d) => d.toDateString() === date.toDateString()
-                          );
-                          return isBeforeStart || isBooked;
+                          )
+                          return isBeforeStart || isBooked
                         }}
                         modifiers={{
                           booked: bookedDates,
                         }}
                         modifiersStyles={{
-                          booked: { backgroundColor: "#f87171", color: "white", borderRadius: "50%"},
+                          booked: {
+                            backgroundColor: "#f87171",
+                            color: "white",
+                            borderRadius: "50%",
+                          },
                         }}
                         initialFocus
                       />
@@ -861,37 +853,39 @@ export function PublicBooking() {
               </div>
             </div>
 
-            {/* Hiển thị tóm tắt */}
-            {bookingForm.startDate && bookingForm.endDate && bookingForm.startTime && bookingForm.endTime && (
-              <Card className="bg-muted/50">
-                <CardContent className="pt-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <Label className="text-sm font-[Be_Vietnam_Pro]">Số ngày thuê</Label>
-                      <span className="font-[Be_Vietnam_Pro]">{calculateTotalDays()} ngày</span>
+            {bookingForm.startDate &&
+              bookingForm.endDate &&
+              bookingForm.startTime &&
+              bookingForm.endTime && (
+                <Card className="bg-muted/50">
+                  <CardContent className="pt-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <Label className="text-sm font-medium">Số ngày thuê</Label>
+                        <span className="font-medium">{calculateTotalDays()} ngày</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <Label className="text-sm font-medium">Mức giá áp dụng</Label>
+                        <span className="font-medium">
+                          {getPricingInfo().label} ({getPricingInfo().rate.toLocaleString("vi-VN")}
+                          đ/ngày)
+                        </span>
+                      </div>
+
+                      <Separator />
+
+                      <div className="flex justify-between text-lg font-semibold">
+                        <Label className="text-sm font-medium">Tổng cộng</Label>
+                        <span className="text-primary">
+                          {getPricingInfo().total.toLocaleString("vi-VN")}đ
+                        </span>
+                      </div>
                     </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                    <div className="flex justify-between">
-                      <Label className="text-sm font-[Be_Vietnam_Pro]">Mức giá áp dụng</Label>
-                      <span className="font-[Be_Vietnam_Pro]">
-                        {getPricingInfo().label} ({getPricingInfo().rate.toLocaleString("vi-VN")}đ/ngày)
-                      </span>
-                    </div>
-
-                    <Separator />
-
-                    <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
-                      <Label className="text-sm font-[Be_Vietnam_Pro]">Tổng cộng</Label>
-                      <span className="text-primary">
-                        {getPricingInfo().total.toLocaleString("vi-VN")}đ
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Nút điều hướng */}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("select")}>
                 Quay lại
@@ -904,29 +898,34 @@ export function PublicBooking() {
         </Card>
       )}
 
-
-
       {/* Step 3: Customer Details */}
       {step === "details" && (
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Thông tin khách hàng</CardTitle>
-            <CardDescription>Vui lòng điền đầy đủ thông tin để hoàn tất đặt thuê</CardDescription>
+            <CardDescription>
+              Vui lòng điền đầy đủ thông tin để hoàn tất đặt thuê
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Họ và tên *</Label>
-                <Input
-                  id="name"
-                  value={bookingForm.customerName}
-                  onChange={(e) => setBookingForm((prev) => ({ ...prev, customerName: e.target.value }))}
-                  placeholder="Nhập họ và tên"
-                />
-              </div>
-            </div>
             <div className="space-y-2">
-              <Label htmlFor="phone" className="block mb-1 text-sm font-medium">Số điện thoại *</Label>
+              <Label htmlFor="name" className="block mb-1 text-sm font-medium">
+                Họ và tên *
+              </Label>
+              <Input
+                id="name"
+                value={bookingForm.customerName}
+                onChange={(e) =>
+                  setBookingForm((prev) => ({ ...prev, customerName: e.target.value }))
+                }
+                placeholder="Nhập họ và tên"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="block mb-1 text-sm font-medium">
+                Số điện thoại *
+              </Label>
               <Input
                 id="phone"
                 type="tel"
@@ -937,39 +936,39 @@ export function PublicBooking() {
                   if (value === "" || /^[0-9]{9,11}$/.test(value)) {
                     setPhoneError("")
                   } else {
-                    setPhoneError("Yêu cầu nhập đúng định dạng số điện thoại (9-11 chữ số).")
+                    setPhoneError("Số điện thoại phải có từ 9-11 chữ số")
                   }
                 }}
                 placeholder="Nhập số điện thoại"
-                required
-                pattern="^[0-9]{9,11}$"
               />
+              {phoneError && <p className="text-sm text-red-500">{phoneError}</p>}
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="email" className="block mb-1 text-sm font-medium">Email *</Label>
+              <Label htmlFor="email" className="block mb-1 text-sm font-medium">
+                Email *
+              </Label>
               <Input
                 id="email"
                 type="email"
                 value={bookingForm.customerEmail}
                 onChange={(e) => {
-                  const value = e.target.value
-                  e.target.setCustomValidity(
-                    /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value) ? "" : "Email không hợp lệ, vui lòng nhập lại"
-                  )
-                  setBookingForm((prev) => ({ ...prev, customerEmail: value }))
+                  setBookingForm((prev) => ({ ...prev, customerEmail: e.target.value }))
                 }}
                 placeholder="Nhập địa chỉ email"
-                required
               />
-
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes" className="block mb-1 text-sm font-[Be_Vietnam_Pro]">Ghi chú</Label>
+              <Label htmlFor="notes" className="block mb-1 text-sm font-medium">
+                Ghi chú
+              </Label>
               <Textarea
                 id="notes"
                 value={bookingForm.notes}
-                onChange={(e) => setBookingForm((prev) => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) =>
+                  setBookingForm((prev) => ({ ...prev, notes: e.target.value }))
+                }
                 placeholder="Ghi chú thêm về yêu cầu thuê máy (tùy chọn)"
                 rows={3}
               />
@@ -992,34 +991,28 @@ export function PublicBooking() {
         <Card className="max-w-4xl mx-auto w-full">
           <CardHeader>
             <CardTitle>Xác nhận đặt thuê</CardTitle>
-            <CardDescription>
-              Vui lòng kiểm tra lại thông tin trước khi thanh toán
-            </CardDescription>
+            <CardDescription>Vui lòng kiểm tra lại thông tin trước khi thanh toán</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6">
             <div className="grid md:grid-cols-2 gap-8">
-              {/* LEFT: Booking summary */}
               <div className="space-y-4">
-                {/* Camera info */}
                 <div className="flex items-center gap-3 p-4 border rounded-lg">
                   <CameraIcon className="h-8 w-8 text-primary" />
                   <div>
-                    <h4 className="font-[Be_Vietnam_Pro]">{selectedCamera.name}</h4>
+                    <h4 className="font-semibold">{selectedCamera.name}</h4>
                     <p className="text-sm text-muted-foreground">
                       {selectedCamera.brand} {selectedCamera.model}
                     </p>
                   </div>
                 </div>
 
-                {/* Booking info */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-3">
-                    {/* Ngày & giờ thuê */}
                     <div className="flex items-start gap-2">
                       <CalendarIcon className="h-4 w-4 text-muted-foreground mt-1" />
                       <div>
-                        <p className="text-sm font-[Be_Vietnam_Pro]">Thời gian thuê</p>
+                        <p className="text-sm font-medium">Thời gian thuê</p>
                         <p className="text-sm text-muted-foreground">
                           {bookingForm.startDate &&
                             format(bookingForm.startDate, "dd/MM/yyyy", { locale: vi })}{" "}
@@ -1028,16 +1021,8 @@ export function PublicBooking() {
                             format(bookingForm.endDate, "dd/MM/yyyy", { locale: vi })}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Giờ nhận:{" "}
-                          <b>
-                            {bookingForm.startTime
-                              ? bookingForm.startTime
-                              : "Chưa chọn"}
-                          </b>{" "}
-                          | Giờ trả:{" "}
-                          <b>
-                            {bookingForm.endTime ? bookingForm.endTime : "Chưa chọn"}
-                          </b>
+                          Giờ nhận: <b>{bookingForm.startTime || "Chưa chọn"}</b> | Giờ trả:{" "}
+                          <b>{bookingForm.endTime || "Chưa chọn"}</b>
                         </p>
                       </div>
                     </div>
@@ -1045,7 +1030,7 @@ export function PublicBooking() {
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-[Be_Vietnam_Pro]">Số ngày</p>
+                        <p className="text-sm font-medium">Số ngày</p>
                         <p className="text-sm text-muted-foreground">
                           {calculateTotalDays()} ngày
                         </p>
@@ -1053,13 +1038,11 @@ export function PublicBooking() {
                     </div>
                   </div>
 
-                  {/* Khách hàng */}
-                  {/* Khách hàng */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-[Be_Vietnam_Pro]">Khách hàng</p>
+                        <p className="text-sm font-medium">Khách hàng</p>
                         <p className="text-sm text-muted-foreground">
                           {bookingForm.customerName}
                         </p>
@@ -1069,7 +1052,7 @@ export function PublicBooking() {
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-[Be_Vietnam_Pro]">Liên hệ</p>
+                        <p className="text-sm font-medium">Liên hệ</p>
                         <p className="text-sm text-muted-foreground">
                           {bookingForm.customerEmail}
                         </p>
@@ -1083,19 +1066,16 @@ export function PublicBooking() {
 
                 {bookingForm.notes && (
                   <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm font-[Be_Vietnam_Pro] mb-1">Ghi chú:</p>
-                    <p className="text-sm text-muted-foreground">
-                      {bookingForm.notes}
-                    </p>
+                    <p className="text-sm font-medium mb-1">Ghi chú:</p>
+                    <p className="text-sm text-muted-foreground">{bookingForm.notes}</p>
                   </div>
                 )}
 
-                {/* Tổng cộng */}
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="pt-4">
                     <div className="space-y-2">
-                      <div className="flex justify-between text-lg font-[Be_Vietnam_Pro]">
-                        <span className="font-[Be_Vietnam_Pro]">Tổng cộng:</span>
+                      <div className="flex justify-between text-lg font-semibold">
+                        <span>Tổng cộng:</span>
                         <span className="text-primary">
                           {calculateTotalAmount().toLocaleString("vi-VN")}đ
                         </span>
@@ -1105,11 +1085,8 @@ export function PublicBooking() {
                 </Card>
               </div>
 
-              {/* RIGHT: Payment info */}
               <div className="flex flex-col items-center justify-center space-y-4 border-l pl-6 text-center">
-                <h3 className="text-lg font-semibold font-[Be_Vietnam_Pro]">
-                  Thông tin thanh toán
-                </h3>
+                <h3 className="text-lg font-semibold">Thông tin thanh toán</h3>
 
                 {paymentInfo ? (
                   <>
@@ -1123,7 +1100,7 @@ export function PublicBooking() {
                       </div>
                     )}
 
-                    <div className="text-sm mt-2 space-y-1 font-[Be_Vietnam_Pro]">
+                    <div className="text-sm mt-2 space-y-1">
                       <p>
                         Ngân hàng: <b>{paymentInfo.bankName}</b>
                       </p>
@@ -1156,7 +1133,6 @@ export function PublicBooking() {
               </div>
             </div>
 
-            {/* Action buttons */}
             <div className="flex gap-2 pt-2">
               <Button variant="outline" onClick={() => setStep("details")}>
                 Quay lại
@@ -1173,38 +1149,40 @@ export function PublicBooking() {
         </Card>
       )}
 
-
       {/* Success Dialog */}
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
-        <DialogContent className="max-w-md text-sm font-[Be_Vietnam_Pro]">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-600 font-semibold">
               <Check className="h-5 w-5" />
               Đặt thuê thành công!
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Yêu cầu đặt thuê của bạn đã được gửi thành công. Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.
+              Yêu cầu đặt thuê của bạn đã được gửi thành công. Chúng tôi sẽ liên hệ với bạn trong
+              thời gian sớm nhất.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex gap-2 pt-4">
-            <Button variant="outline" onClick={() => {
-              resetForm()
-              setShowSuccess(false)
-              setTimeout(() => setStep("select"), 3000)
-            }} className="flex-1">
+            <Button
+              variant="outline"
+              onClick={() => {
+                resetForm()
+                setShowSuccess(false)
+              }}
+              className="flex-1"
+            >
               Đóng
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-
       {cameras.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <CameraIcon className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-[Be_Vietnam_Pro] mb-2">Hiện tại không có máy ảnh</h3>
+            <h3 className="text-lg font-semibold mb-2">Hiện tại không có máy ảnh</h3>
             <p className="text-muted-foreground text-center">
               Tất cả máy ảnh đang được thuê hoặc bảo trì. Vui lòng quay lại sau.
             </p>
