@@ -97,6 +97,61 @@ export function PublicBooking() {
     return () => clearTimeout(timer)
   }, [showSuccess])
 
+  // // Fetch available cameras (only active ones)
+  // useEffect(() => {
+  //   const camerasRef = ref(db, "cameras");
+
+  //   const unsubscribe = onValue(camerasRef, (snapshot) => {
+  //     const camerasData = snapshot.exists() ? snapshot.val() : {};
+
+  //     const cameraList = Object.entries(camerasData)
+  //       .map(([id, camValue]) => {
+  //         const cam = camValue as Omit<CameraType, "id">;
+  //         return { id, ...cam };
+  //       })
+  //       .filter((c) => c.status === "active"); 
+
+  //     setCameras(cameraList);
+  //   });
+
+  //   return () => unsubscribe();
+  // }, []);
+
+
+  // // Fetch booked dates for the selected camera
+  // useEffect(() => {
+  //   if (!selectedCamera?.id) return
+
+  //   const fetchBookedDates = async () => {
+  //     try {
+  //       const snap = await get(ref(db, "bookings"))
+  //       if (!snap.exists()) return
+
+  //       const allBookings = Object.values(snap.val())
+
+  //       const dates: Date[] = []
+
+  //       allBookings.forEach((b: any) => {
+  //         if (!b || b.cameraId !== selectedCamera.id) return
+  //         if (!["pending", "confirmed"].includes(b.status)) return
+
+  //         const start = new Date(b.startDate)
+  //         const end = new Date(b.endDate)
+
+  //         // Lấy tất cả các ngày trong khoảng start → end
+  //         const current = new Date(start)
+  //         while (current <= end) {
+  //           dates.push(new Date(current))
+  //           current.setDate(current.getDate() + 1)
+  //         }
+  //       })
+
+  //       setBookedDates(dates)
+  //     } catch (err) {
+  //       console.error("Lỗi khi tải ngày đã đặt:", err)
+  //     }
+  //   }
+
   // Fetch available cameras (only active ones)
   useEffect(() => {
     const camerasRef = ref(db, "cameras")
