@@ -10,9 +10,9 @@ const beVietnamPro = Be_Vietnam_Pro({
 })
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: 'chupchoet.digicam',
+  description: 'Camera Rental',
+  generator: 'Tâm Việt Quang team dev',
 }
 
 export default function RootLayout({

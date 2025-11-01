@@ -17,9 +17,9 @@ export default function BookingPage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-                  Lens & Light
+                  chupchoet.digicam
                 </h1>
-                <p className="text-xs text-foreground/60">Camera Rental Studio</p>
+                <p className="text-xs text-foreground/60">Camera Rental</p>
               </div>
             </div>
             <Link
@@ -49,8 +49,8 @@ export default function BookingPage() {
             </h2>
 
             <p className="text-xl text-foreground/70 max-w-2xl mx-auto leading-relaxed">
-              Thuê máy ảnh chuyên nghiệp với giá ưu đãi. Dành riêng cho những người phụ nữ yêu thích nhiếp ảnh, muốn lưu
-              giữ những khoảnh khắc đẹp nhất trong cuộc sống.
+          Ghi lại khoảnh khắc theo cách của bạn!
+          Trải nghiệm dịch vụ thuê máy ảnh chuyên nghiệp, dành cho mọi ai yêu nhiếp ảnh và muốn kể câu chuyện của chính mình qua ống kính.
             </p>
 
             <div className="flex flex-wrap gap-4 justify-center pt-4">
@@ -79,7 +79,7 @@ export default function BookingPage() {
           <div className="grid md:grid-cols-4 gap-8 max-w-5xl mx-auto">
             {[
               { icon: Shield, title: "Bảo hành toàn diện", desc: "Máy móc được kiểm tra kỹ lưỡng" },
-              { icon: Clock, title: "Giao nhận nhanh", desc: "Trong vòng 2 giờ tại TP.HCM" },
+              { icon: Clock, title: "Giao nhận nhanh", desc: "Tại Hà Nội" },
               { icon: Heart, title: "Hỗ trợ tận tình", desc: "Tư vấn sử dụng miễn phí" },
               { icon: Star, title: "Giá cả hợp lý", desc: "Ưu đãi cho khách hàng thân thiết" },
             ].map((item, index) => (
@@ -146,26 +146,23 @@ export default function BookingPage() {
             <div className="glass-card rounded-3xl p-8 md:p-12 space-y-6 border border-white/20">
               <p className="text-lg text-foreground/80 leading-relaxed">
                 <span className="text-2xl text-pink-400 font-serif">"</span>
-                Lens & Light ra đời từ câu chuyện của một người phụ nữ yêu thích nhiếp ảnh. Tôi hiểu rằng không phải ai
-                cũng có điều kiện sở hữu một chiếc máy ảnh chuyên nghiệp, nhưng mọi người đều xứng đáng có những bức ảnh
-                đẹp để lưu giữ kỷ niệm.
+          Từ niềm đam mê với nhiếp ảnh và khát khao lan tỏa cảm hứng sáng tạo, chúng mình đã quyết định đầu tư hàng trăm triệu đồng cho những chiếc máy ảnh Fujifilm chất lượng cao, để ai cũng có thể chạm đến trải nghiệm chụp ảnh chuyên nghiệp — chỉ từ 100k.
               </p>
 
               <p className="text-lg text-foreground/80 leading-relaxed">
-                Chúng tôi tin rằng mỗi khoảnh khắc trong cuộc sống đều đáng được ghi lại một cách trọn vẹn nhất. Từ
-                những chuyến du lịch, tiệc sinh nhật, đám cưới, cho đến những buổi chụp ảnh cá nhân - tất cả đều xứng
-                đáng có một chiếc máy ảnh tốt nhất.
+          Chúng mình hiểu cảm giác phân vân khi muốn mua máy nhưng sợ ít dùng, nên #chupchoet.digicam ra đời để bạn có thể trải nghiệm nhiều dòng máy khác nhau, khám phá góc nhìn mới, mà chi phí chỉ bằng vài ly trà sữa.
               </p>
 
               <p className="text-lg text-foreground/80 leading-relaxed">
-                Với đội ngũ toàn nữ giới, chúng tôi hiểu tâm lý và nhu cầu của các chị em phụ nữ. Chúng tôi không chỉ
-                cho thuê máy ảnh, mà còn chia sẻ kinh nghiệm, hướng dẫn sử dụng và tư vấn để bạn có những bức ảnh đẹp
-                nhất.
+          Không chỉ cho thuê thiết bị, chúng mình còn muốn đồng hành cùng bạn trong từng khung hình:
+          💫 Tặng preset màu độc quyền giúp ảnh có hồn hơn
+          🤝 Hỗ trợ tận tình từ khi nhận máy đến lúc trả
+          🎒 Phụ kiện đầy đủ từ A–Z, để bạn chỉ việc mang theo niềm cảm hứng và bắt đầu kể câu chuyện của riêng mình qua ống kính.
                 <span className="text-2xl text-pink-400 font-serif">"</span>
               </p>
 
               <div className="pt-6 border-t border-white/20">
-                <p className="text-foreground/60 italic">- Minh Anh, Founder & Creative Director</p>
+                <p className="text-foreground/60 italic">- Minh Thư, Founder & Creative Director</p>
               </div>
             </div>
           </div>
@@ -203,7 +200,7 @@ export default function BookingPage() {
                 name: "Phương Anh",
                 role: "Nhiếp ảnh nghiệp dư",
                 content:
-                  "Lần đầu thuê máy ảnh chuyên nghiệp, mình hơi lo lắng nhưng chị tư vấn rất kỹ. Máy Canon 5D Mark IV chụp ảnh chân dung đẹp xuất sắc!",
+                  "Lần đầu thuê máy ảnh chuyên nghiệp, mình hơi lo lắng nhưng chị tư vấn rất kỹ. Máy chụp ảnh chân dung đẹp xuất sắc!",
                 rating: 5,
               },
             ].map((testimonial, index) => (
@@ -236,9 +233,9 @@ export default function BookingPage() {
               </div>
               <div className="text-left">
                 <h3 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-                  Lens & Light
+                  chupchoet.digicam
                 </h3>
-                <p className="text-sm text-foreground/60">Camera Rental Studio</p>
+                <p className="text-sm text-foreground/60">Camera Rental</p>
               </div>
             </div>
 
@@ -260,7 +257,7 @@ export default function BookingPage() {
             </div>
 
             <p className="text-sm text-foreground/50 pt-6">
-              © 2025 Lens & Light. Made with <Heart className="inline h-4 w-4 text-pink-400" /> for photography lovers
+              © 2025 chupchoet.digicam. Made with <Heart className="inline h-4 w-4 text-pink-400" /> for photography lovers
             </p>
           </div>
         </div>
