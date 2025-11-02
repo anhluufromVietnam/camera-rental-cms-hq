@@ -518,40 +518,38 @@ export function OrderManagement() {
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
+                                                {canUpdateStatus(booking) && (
+                                                  <Button
+                                                    size="sm"
+                                                    onClick={() => handleQuickStatusUpdate(booking, STATUS_CONFIG[booking.status].nextStatus!)}
+                                                    className="text-xs"
+                                                  >
+                                                    {getNextStatusLabel(booking)}
+                                                  </Button>
+                                                )}
 
-                  {canUpdateStatus(booking) && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleQuickStatusUpdate(booking, STATUS_CONFIG[booking.status].nextStatus!)}
-                      className="text-xs"
-                    >
-                      {getNextStatusLabel(booking)}
-                    </Button>
-                  )}
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    setSelectedBooking(booking)
+                                                    setNewStatus(booking.status)
+                                                    setAdminNotes(booking.adminNotes || "")
+                                                    setIsStatusUpdateOpen(true)
+                                                  }}
+                                                >
+                                                  <Edit className="h-4 w-4" />
+                                                </Button>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedBooking(booking)
-                      setNewStatus(booking.status)
-                      setAdminNotes(booking.adminNotes || "")
-                      setIsStatusUpdateOpen(true)
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => deleteBooking(booking.id)}
+                                                  className="text-destructive hover:text-destructive"
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
 
-                  {booking.status === "pending" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteBooking(booking.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
                 </div>
               </div>
             ))}
