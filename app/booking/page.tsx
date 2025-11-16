@@ -126,7 +126,7 @@ export default function BookingPage() {
           </div>
 
           <div className="max-w-6xl mx-auto glass-card rounded-3xl p-6 md:p-10 border border-white/20">
-            <FacebookGallery albumUrl="https://www.facebook.com/media/set?vanity=bbbtranslation&set=a.746067487801116" />
+            <FacebookGallery albumUrl="https://www.instagram.com/chupchoet.digicam" />
           </div>
         </div>
       </section>

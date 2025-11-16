@@ -14,27 +14,27 @@ export function FacebookGallery({ albumUrl }: FacebookGalleryProps) {
   const photosPerPage = 10
 
   const photos = [
-    { id: 1, url: "/beautiful-woman-taking-photos-with-camera.jpg" },
-    { id: 2, url: "/professional-camera-equipment-rental.jpg" },
-    { id: 3, url: "/woman-photographer-with-canon-camera.jpg" },
-    { id: 4, url: "/aesthetic-photography-session.jpg" },
-    { id: 5, url: "/camera-rental-customer-happy.jpg" },
-    { id: 6, url: "/beautiful-portrait-photography.jpg" },
-    { id: 7, url: "/wedding-photography-with-rented-camera.jpg" },
-    { id: 8, url: "/travel-photography-vietnam.jpg" },
-    { id: 9, url: "/professional-photoshoot-setup.jpg" },
-    { id: 10, url: "/camera-lens-collection.jpg" },
-    { id: 11, url: "/female-photographer-working.jpg" },
-    { id: 12, url: "/photography-studio-equipment.png" },
-    { id: 13, url: "/beautiful-landscape.png" },
-    { id: 14, url: "/camera-rental-service.png" },
-    { id: 15, url: "/professional-photography-gear.jpg" },
-    { id: 16, url: "/happy-customer-with-camera.jpg" },
-    { id: 17, url: "/aesthetic-photo-session.jpg" },
-    { id: 18, url: "/camera-equipment-showcase.jpg" },
-    { id: 19, url: "/placeholder.svg?height=400&width=400" },
-    { id: 20, url: "/placeholder.svg?height=400&width=400" },
-  ]
+  { id: 1, url: "/IMG_1490.JPG" },
+  { id: 2, url: "/camera1.jpg" },
+  { id: 3, url: "/3b00bc1e-1a3f-4f59-899a-7e71cc316fef.jpeg" },
+  { id: 4, url: "/IMG_1491.JPG" },
+  { id: 5, url: "/ae2fb699-8c93-4ec9-b1db-009e0002dc12.jpeg" },
+  { id: 6, url: "/IMG_1292.JPG" },
+  { id: 7, url: "/IMG_1291.JPG" },
+  { id: 8, url: "/f9bb4528-cd71-4a86-8baa-c94b4979fe44.jpeg" },
+  { id: 9, url: "/IMG_0316.JPG" },
+  { id: 10, url: "/camera2.jpg" },
+  { id: 11, url: "/IMG_0317.JPG" },
+  { id: 12, url: "/7b638d26-ef1a-41ae-b8a3-539ece5c3acb.jpeg" },
+  { id: 13, url: "/2a7e512e-6ed5-45ae-a94e-5c33fc9e5c89.jpeg" },
+  { id: 14, url: "/094cb8ba-a82f-41a6-9e60-da419b25b57f.jpeg" },
+  { id: 15, url: "/camera3.jpg" },
+  { id: 16, url: "/741d6215-9b47-4e9e-9a88-2ef8d6e93d92.jpeg" },
+  { id: 17, url: "/DE74CB7F-E2CD-4AEA-B03C-9ED9A98C511D.jpg" },
+  { id: 18, url: "/e9586cd4-c844-4748-8823-cae366c745e6.jpeg" },
+  { id: 19, url: "/a50dde13-89aa-4d51-9ca1-9582184bd24f.jpeg" },
+  { id: 20, url: "/IMG_1489.JPG" },
+]
 
   const totalPages = Math.ceil(photos.length / photosPerPage)
   const currentPhotos = photos.slice(currentPage * photosPerPage, (currentPage + 1) * photosPerPage)

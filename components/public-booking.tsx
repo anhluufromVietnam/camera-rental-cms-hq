@@ -362,7 +362,7 @@ export function PublicBooking() {
       setShowSuccess(true)
       resetForm()
       setTimeout(() => {
-        window.open("https://www.facebook.com/messages/t/1294650282213798/", "_blank")
+        window.open("https://www.facebook.com/messages/t/26322425147401520", "_blank")
       }, 1200)
     } catch (err) {
       console.error("Lỗi khi tạo booking:", err)
@@ -839,9 +839,20 @@ export function PublicBooking() {
                       <SelectValue placeholder="Giờ nhận" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-gray-900">
-                      <SelectItem value="08:00">08:00 sáng</SelectItem>
-                      <SelectItem value="10:00">10:00 sáng</SelectItem>
-                      <SelectItem value="12:00">12:00 trưa</SelectItem>
+                                          <SelectItem value="9:00">9:00 sáng</SelectItem>
+                    <SelectItem value="10:00">10:00 sáng</SelectItem>
+                    <SelectItem value="11:00">11:00 trưa</SelectItem>
+                    <SelectItem value="12:00">12:00 trưa</SelectItem>
+                    <SelectItem value="13:00">13:00 chiều</SelectItem>
+                      <SelectItem value="14:00">14:00 chiều</SelectItem>
+                    <SelectItem value="15:00">15:00 chiều</SelectItem>
+                      <SelectItem value="16:00">16:00 chiều</SelectItem>
+                    <SelectItem value="17:00">17:00 chiều</SelectItem>
+                      <SelectItem value="18:00">18:00 chiều</SelectItem>
+                    <SelectItem value="19:00">19:00 tối</SelectItem>
+                    <SelectItem value="20:00">20:00 tối</SelectItem>
+                    <SelectItem value="21:00">21:00 tối</SelectItem>
+                    <SelectItem value="22:00">22:00 tối</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -899,9 +910,20 @@ export function PublicBooking() {
                       <SelectValue placeholder="Giờ trả" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-gray-900">
+                                          <SelectItem value="9:00">9:00 sáng</SelectItem>
+                    <SelectItem value="10:00">10:00 sáng</SelectItem>
+                    <SelectItem value="11:00">11:00 trưa</SelectItem>
+                    <SelectItem value="12:00">12:00 trưa</SelectItem>
+                    <SelectItem value="13:00">13:00 chiều</SelectItem>
                       <SelectItem value="14:00">14:00 chiều</SelectItem>
+                    <SelectItem value="15:00">15:00 chiều</SelectItem>
                       <SelectItem value="16:00">16:00 chiều</SelectItem>
+                    <SelectItem value="17:00">17:00 chiều</SelectItem>
                       <SelectItem value="18:00">18:00 chiều</SelectItem>
+                    <SelectItem value="19:00">19:00 tối</SelectItem>
+                    <SelectItem value="20:00">20:00 tối</SelectItem>
+                    <SelectItem value="21:00">21:00 tối</SelectItem>
+                    <SelectItem value="22:00">22:00 tối</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
