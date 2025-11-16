@@ -341,6 +341,7 @@ export function CalendarView() {
       {viewMode === "month" && (
         <Card>
           <CardContent className="p-0">
+
             {/* Header: Thứ */}
             <div className="grid grid-cols-7 gap-px bg-border border-b border-border">
               {WEEKDAYS.map(d => (
@@ -354,117 +355,68 @@ export function CalendarView() {
             <div className="space-y-px">
               {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map((_, weekIdx) => {
                 const weekDays = calendarDays.slice(weekIdx * 7, weekIdx * 7 + 7)
-                const weekStartDate = normalizeToDate(weekDays[0].date)
-                const weekEndDate = new Date(normalizeToDate(weekDays[6].date))
-                weekEndDate.setHours(23, 59, 59, 999)
-
-                // Lấy booking trong tuần
-                const bookingsInWeek = bookings
-                  .map(b => {
-                    const start = normalizeToDate(b.startDate)
-                    const end = normalizeToDate(b.endDate)
-                    return { booking: b, start, end }
-                  })
-                  .filter(x => !(x.start > weekEndDate || x.end < weekStartDate))
-                  .sort((a, b) => a.start.getTime() - b.start.getTime())
-
-                // Tính startIdx, endIdx
-                const ranged = bookingsInWeek.map(x => {
-                  const visibleStart = x.start < weekStartDate ? weekStartDate : x.start
-                  const visibleEnd = x.end > weekEndDate ? weekEndDate : x.end
-                  const startIdx = Math.max(0, Math.floor((visibleStart.getTime() - weekStartDate.getTime()) / 86400000))
-                  const endIdx = Math.min(6, Math.floor((visibleEnd.getTime() - weekStartDate.getTime()) / 86400000))
-                  return { ...x, visibleStart, visibleEnd, startIdx, endIdx }
-                })
-
-                // Packing vào 3 hàng
-                const rows: Array<typeof ranged> = []
-                const overflow: typeof ranged = []
-                for (const item of ranged) {
-                  let placed = false
-                  for (let r = 0; r < 3; r++) {
-                    if (!rows[r]) rows[r] = []
-                    const conflict = rows[r].some(e => !(item.endIdx < e.startIdx || item.startIdx > e.endIdx))
-                    if (!conflict) {
-                      rows[r].push(item)
-                      placed = true
-                      break
-                    }
-                  }
-                  if (!placed) overflow.push(item)
-                }
-
-                // Tính +X
-                const hiddenCountByDay = new Array(7).fill(0)
-                overflow.forEach(h => {
-                  if (h.startIdx >= 0 && h.startIdx <= 6) hiddenCountByDay[h.startIdx]++
-                })
 
                 return (
                   <div key={weekIdx} className="relative bg-card">
-                    {/* Grid 7 ô */}
+
+                    {/* GRID 7 Ô */}
                     <div className="grid grid-cols-7 gap-px bg-border">
-                      {weekDays.map((day, i) => (
-                        <div
-                          key={i}
-                          onClick={() => openDay(day.date, day.bookings)}
-                          className={cn(
-                            "min-h-24 p-3 bg-card cursor-pointer hover:bg-muted/50 transition relative flex flex-col",
-                            !day.isCurrentMonth && "bg-muted/20 text-muted-foreground"
-                          )}
-                        >
-                          {/* Số ngày */}
-                          <div className="flex items-center justify-between mb-2">
-                            <span className={cn("text-sm font-medium", isSameDay(day.date, new Date()) && "text-primary font-bold")}>
-                              {day.date.getDate()}
-                            </span>
-                            {isSameDay(day.date, new Date()) && <Badge className="h-5 text-xs">Hôm nay</Badge>}
-                          </div>
+                      {weekDays.map((day, i) => {
 
-                          {/* Booking tĩnh (chỉ để hiển thị +X) */}
-                          <div className="flex-1" />
-                          {hiddenCountByDay[i] > 0 && (
-                            <div className="text-muted-foreground text-xs mt-auto">+{hiddenCountByDay[i]}</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                        const bookingsOfDay = bookings.filter(b =>
+                          isSameDay(normalizeToDate(b.startDate), day.date) ||
+                          isSameDay(normalizeToDate(b.endDate), day.date) ||
+                          (normalizeToDate(b.startDate) < day.date &&
+                            normalizeToDate(b.endDate) > day.date)
+                        )
 
-                    {/* Thanh booking LIỀN MẠCH (absolute) */}
-                    <div className="absolute inset-0 pointer-events-none">
-                      {rows.map((row, ridx) =>
-                        row.map(item => {
-                          const leftPct = (item.startIdx / 7) * 100
-                          const spanCols = item.endIdx - item.startIdx + 1
-                          const widthPct = (spanCols / 7) * 100
-                          const topPx = 40 + ridx * 30 // 40px cho header, 28px mỗi hàng
-
-                          return (
-                            <div
-                              key={`${item.booking.id}-bar-${ridx}`}
-                              style={{
-                                left: `${leftPct}%`,
-                                width: `${widthPct}%`,
-                                top: `${topPx}px`,
-                              }}
-                              className={cn(
-                                "absolute h-7 px-2 rounded-md text-white text-xs font-medium flex items-center shadow-sm pointer-events-auto cursor-pointer transition-all hover:shadow-md",
-                                STATUS_COLORS[item.booking.status]
-                              )}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedBooking(item.booking)
-                              }}
-                              title={`${item.booking.customerName} — ${item.booking.cameraName}`}
-                            >
-                              <span className="truncate">
-                                {item.booking.customerName}
+                        return (
+                          <div
+                            key={i}
+                            onClick={() => openDay(day.date, day.bookings)}
+                            className={cn(
+                              "min-h-24 p-2 bg-card cursor-pointer hover:bg-muted/50 transition relative flex flex-col",
+                              !day.isCurrentMonth && "bg-muted/20 text-muted-foreground"
+                            )}
+                          >
+                            {/* SỐ NGÀY */}
+                            <div className="flex items-center justify-between mb-2">
+                              <span className={cn("text-sm font-medium",
+                                isSameDay(day.date, new Date()) && "text-primary font-bold"
+                              )}>
+                                {day.date.getDate()}
                               </span>
+
+                              {isSameDay(day.date, new Date()) && (
+                                <Badge className="h-5 text-xs">Hôm nay</Badge>
+                              )}
                             </div>
-                          )
-                        })
-                      )}
+
+                            {/* BOOKING THEO NGÀY (STACK DỌC) */}
+                            <div className="flex flex-col gap-1 overflow-visible">
+                              {bookingsOfDay.map((b, idx) => (
+                                <div
+                                  key={b.id + "-" + idx}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedBooking(b)
+                                  }}
+                                  className={cn(
+                                    "px-2 py-1 rounded text-white text-xs truncate shadow-sm cursor-pointer",
+                                    STATUS_COLORS[b.status]
+                                  )}
+                                  title={`${b.customerName} — ${b.cameraName}`}
+                                >
+                                  {b.customerName}
+                                </div>
+                              ))}
+                            </div>
+
+                          </div>
+                        )
+                      })}
                     </div>
+
                   </div>
                 )
               })}

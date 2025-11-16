@@ -97,27 +97,6 @@ export function PublicBooking() {
     return () => clearTimeout(timer)
   }, [showSuccess])
 
-  // // Fetch available cameras (only active ones)
-  // useEffect(() => {
-  //   const camerasRef = ref(db, "cameras");
-
-  //   const unsubscribe = onValue(camerasRef, (snapshot) => {
-  //     const camerasData = snapshot.exists() ? snapshot.val() : {};
-
-  //     const cameraList = Object.entries(camerasData)
-  //       .map(([id, camValue]) => {
-  //         const cam = camValue as Omit<CameraType, "id">;
-  //         return { id, ...cam };
-  //       })
-  //       .filter((c) => c.status === "active"); 
-
-  //     setCameras(cameraList);
-  //   });
-
-  //   return () => unsubscribe();
-  // }, []);
-
-
   // // Fetch booked dates for the selected camera
   // useEffect(() => {
   //   if (!selectedCamera?.id) return
@@ -213,6 +192,36 @@ export function PublicBooking() {
     setSelectedCamera(camera)
     setBookingForm((prev) => ({ ...prev, cameraId: camera.id }))
     setStep("dates")
+  }
+
+  const timeOptions = [
+    { label: "9:00 sáng", value: 9 },
+    { label: "10:00 sáng", value: 10 },
+    { label: "11:00 trưa", value: 11 },
+    { label: "12:00 trưa", value: 12 },
+    { label: "13:00 chiều", value: 13 },
+    { label: "14:00 chiều", value: 14 },
+    { label: "15:00 chiều", value: 15 },
+    { label: "16:00 chiều", value: 16 },
+    { label: "17:00 chiều", value: 17 },
+    { label: "18:00 chiều", value: 18 },
+    { label: "19:00 tối", value: 19 },
+    { label: "20:00 tối", value: 20 },
+    { label: "21:00 tối", value: 21 },
+    { label: "22:00 tối", value: 22 },
+  ]
+
+  const isEndTimeDisabled = (endHour: number) => {
+    if (!bookingForm.startTime || !bookingForm.startDate || !bookingForm.endDate)
+      return false
+
+    const startHour = Number(bookingForm.startTime.split(":")[0])
+    const sameDay =
+      bookingForm.startDate.getTime() === bookingForm.endDate.getTime()
+
+    if (sameDay && endHour <= startHour) return true
+
+    return false
   }
 
   const handleDateSelect = async () => {
@@ -832,27 +841,21 @@ export function PublicBooking() {
                   <Select
                     value={bookingForm.startTime || ""}
                     onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, startTime: value }))
+                      setBookingForm((prev) => ({ ...prev, startTime: value, endTime: "" }))
                     }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Giờ nhận" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-gray-900">
-                                          <SelectItem value="9:00">9:00 sáng</SelectItem>
-                    <SelectItem value="10:00">10:00 sáng</SelectItem>
-                    <SelectItem value="11:00">11:00 trưa</SelectItem>
-                    <SelectItem value="12:00">12:00 trưa</SelectItem>
-                    <SelectItem value="13:00">13:00 chiều</SelectItem>
-                      <SelectItem value="14:00">14:00 chiều</SelectItem>
-                    <SelectItem value="15:00">15:00 chiều</SelectItem>
-                      <SelectItem value="16:00">16:00 chiều</SelectItem>
-                    <SelectItem value="17:00">17:00 chiều</SelectItem>
-                      <SelectItem value="18:00">18:00 chiều</SelectItem>
-                    <SelectItem value="19:00">19:00 tối</SelectItem>
-                    <SelectItem value="20:00">20:00 tối</SelectItem>
-                    <SelectItem value="21:00">21:00 tối</SelectItem>
-                    <SelectItem value="22:00">22:00 tối</SelectItem>
+                      {timeOptions.map((t) => (
+                        <SelectItem
+                          key={t.value}
+                          value={`${t.value}:00`}
+                        >
+                          {t.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -875,7 +878,7 @@ export function PublicBooking() {
                         mode="single"
                         selected={bookingForm.endDate || undefined}
                         onSelect={(date) =>
-                          setBookingForm((prev) => ({ ...prev, endDate: date || null }))
+                          setBookingForm((prev) => ({ ...prev, endDate: date || null, endTime: "" }))
                         }
                         disabled={(date) => {
                           const isBeforeStart =
@@ -910,20 +913,15 @@ export function PublicBooking() {
                       <SelectValue placeholder="Giờ trả" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-gray-900">
-                                          <SelectItem value="9:00">9:00 sáng</SelectItem>
-                    <SelectItem value="10:00">10:00 sáng</SelectItem>
-                    <SelectItem value="11:00">11:00 trưa</SelectItem>
-                    <SelectItem value="12:00">12:00 trưa</SelectItem>
-                    <SelectItem value="13:00">13:00 chiều</SelectItem>
-                      <SelectItem value="14:00">14:00 chiều</SelectItem>
-                    <SelectItem value="15:00">15:00 chiều</SelectItem>
-                      <SelectItem value="16:00">16:00 chiều</SelectItem>
-                    <SelectItem value="17:00">17:00 chiều</SelectItem>
-                      <SelectItem value="18:00">18:00 chiều</SelectItem>
-                    <SelectItem value="19:00">19:00 tối</SelectItem>
-                    <SelectItem value="20:00">20:00 tối</SelectItem>
-                    <SelectItem value="21:00">21:00 tối</SelectItem>
-                    <SelectItem value="22:00">22:00 tối</SelectItem>
+                      {timeOptions.map((t) => (
+                        <SelectItem
+                          key={t.value}
+                          value={`${t.value}:00`}
+                          disabled={isEndTimeDisabled(t.value)}
+                        >
+                          {t.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

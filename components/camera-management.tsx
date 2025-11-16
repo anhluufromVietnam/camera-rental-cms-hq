@@ -251,10 +251,6 @@ export function CameraManagement() {
                   <Label className="text-muted-foreground">Loại</Label>
                   <p className="font-medium">{camera.category}</p>
                 </div>
-                <div>
-                  <Label className="text-muted-foreground">Tồn kho</Label>
-                  <p className="font-medium">{camera.available}/{camera.quantity}</p>
-                </div>
               </div>
 
               <div>
@@ -440,18 +436,6 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Số lượng</Label>
-          <Input type="number" min="1" value={formData.quantity} onChange={e => setFormData(p => ({ ...p, quantity: +e.target.value || 1 }))} />
-        </div>
-        <div>
-          <Label>Còn lại</Label>
-          <Input type="number" min="0" value={formData.available} onChange={e => setFormData(p => ({ ...p, available: +e.target.value || 0 }))} />
-        </div>
-      </div>
-
       <div>
         <Label>Ảnh máy ảnh</Label>
         <Input type="file" accept="image/*" multiple onChange={handleFiles} className="mt-1" />
