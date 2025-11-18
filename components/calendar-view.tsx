@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { ref, onValue } from "firebase/database";
 import { db } from "@/firebase.config";
 
@@ -22,6 +22,7 @@ import {
   User,
   Camera,
   Phone,
+  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -98,7 +99,23 @@ export function CalendarView() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<"month" | "day">("month");
 
-  // Load bookings
+  // Refs & utils
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const now = new Date();
+  const currentHour = now.getHours();
+  const displayHours = Array.from({ length: 24 }, (_, i) => i); // 0 → 23
+  const activeDay = selectedDay || new Date();
+
+  // Auto scroll to current hour in Day View
+  useEffect(() => {
+    if (viewMode === "day" && timelineRef.current) {
+      const hourHeight = 48;
+      const offset = currentHour * hourHeight - 120;
+      timelineRef.current.scrollTop = Math.max(0, offset);
+    }
+  }, [viewMode, activeDay, currentHour]);
+
+  // Load bookings from Firebase
   useEffect(() => {
     const bookingsRef = ref(db, "bookings");
     const unsub = onValue(bookingsRef, (snap) => {
@@ -180,7 +197,6 @@ export function CalendarView() {
     return days;
   }, [bookings, currentDate]);
 
-  // Navigation
   const navigateMonth = (dir: "prev" | "next") => {
     setCurrentDate(d => {
       const copy = new Date(d);
@@ -196,7 +212,7 @@ export function CalendarView() {
     setViewMode("day");
   };
 
-  const openDay = (date: Date, dayBookings: Booking[]) => {
+  const openDay = (date: Date) => {
     setSelectedDay(date);
     setViewMode("day");
   };
@@ -295,20 +311,6 @@ export function CalendarView() {
     return events;
   };
 
-  // Display hours for Day View
-  const now = new Date();
-  const currentHour = now.getHours();
-  const displayHours = useMemo(() => {
-    const hours: number[] = [];
-    for (let i = -2; i <= 2; i++) {
-      const h = currentHour + i;
-      if (h >= 0 && h <= 23) hours.push(h);
-    }
-    return hours.length > 0 ? hours : [currentHour];
-  }, [currentHour]);
-
-  const activeDay = selectedDay || new Date();
-
   return (
     <div className="space-y-6">
       <div>
@@ -337,12 +339,10 @@ export function CalendarView() {
         </div>
       </div>
 
-      {/* ==================== MONTH VIEW ==================== */}
+      {/* MONTH VIEW */}
       {viewMode === "month" && (
         <Card>
           <CardContent className="p-0">
-
-            {/* Header: Thứ */}
             <div className="grid grid-cols-7 gap-px bg-border border-b border-border">
               {WEEKDAYS.map(d => (
                 <div key={d} className="bg-card p-2 text-center text-xs font-medium text-muted-foreground">
@@ -350,158 +350,205 @@ export function CalendarView() {
                 </div>
               ))}
             </div>
-
-            {/* Chia theo tuần */}
             <div className="space-y-px">
               {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map((_, weekIdx) => {
-                const weekDays = calendarDays.slice(weekIdx * 7, weekIdx * 7 + 7)
-
+                const weekDays = calendarDays.slice(weekIdx * 7, weekIdx * 7 + 7);
                 return (
-                  <div key={weekIdx} className="relative bg-card">
-
-                    {/* GRID 7 Ô */}
+                  <div key={weekIdx} className="bg-card">
                     <div className="grid grid-cols-7 gap-px bg-border">
                       {weekDays.map((day, i) => {
-
                         const bookingsOfDay = bookings.filter(b =>
                           isSameDay(normalizeToDate(b.startDate), day.date) ||
                           isSameDay(normalizeToDate(b.endDate), day.date) ||
-                          (normalizeToDate(b.startDate) < day.date &&
-                            normalizeToDate(b.endDate) > day.date)
-                        )
-
+                          (normalizeToDate(b.startDate) < day.date && normalizeToDate(b.endDate) > day.date)
+                        );
                         return (
                           <div
                             key={i}
-                            onClick={() => openDay(day.date, day.bookings)}
+                            onClick={() => openDay(day.date)}
                             className={cn(
                               "min-h-24 p-2 bg-card cursor-pointer hover:bg-muted/50 transition relative flex flex-col",
                               !day.isCurrentMonth && "bg-muted/20 text-muted-foreground"
                             )}
                           >
-                            {/* SỐ NGÀY */}
                             <div className="flex items-center justify-between mb-2">
-                              <span className={cn("text-sm font-medium",
-                                isSameDay(day.date, new Date()) && "text-primary font-bold"
-                              )}>
+                              <span className={cn("text-sm font-medium", isSameDay(day.date, new Date()) && "text-primary font-bold")}>
                                 {day.date.getDate()}
                               </span>
-
-                              {isSameDay(day.date, new Date()) && (
-                                <Badge className="h-5 text-xs">Hôm nay</Badge>
-                              )}
+                              {isSameDay(day.date, new Date()) && <Badge className="h-5 text-xs">Hôm nay</Badge>}
                             </div>
-
-                            {/* BOOKING THEO NGÀY (STACK DỌC) */}
-                            <div className="flex flex-col gap-1 overflow-visible">
-                              {bookingsOfDay.map((b, idx) => (
+                            <div className="flex flex-col gap-1">
+                              {bookingsOfDay.slice(0, 3).map((b, idx) => (
                                 <div
-                                  key={b.id + "-" + idx}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setSelectedBooking(b)
-                                  }}
-                                  className={cn(
-                                    "px-2 py-1 rounded text-white text-xs truncate shadow-sm cursor-pointer",
-                                    STATUS_COLORS[b.status]
-                                  )}
+                                  key={b.id + idx}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedBooking(b); }}
+                                  className={cn("px-2 py-1 rounded text-white text-xs truncate shadow-sm cursor-pointer", STATUS_COLORS[b.status])}
                                   title={`${b.customerName} — ${b.cameraName}`}
                                 >
                                   {b.customerName}
                                 </div>
                               ))}
+                              {bookingsOfDay.length > 3 && <div className="text-xs text-muted-foreground">+{bookingsOfDay.length - 3} khác</div>}
                             </div>
-
                           </div>
-                        )
+                        );
                       })}
                     </div>
-
                   </div>
-                )
+                );
               })}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* ==================== DAY VIEW ==================== */}
+      {/* DAY VIEW – ĐÃ FIX 100% LỖI */}
       {viewMode === "day" && (
-        <Card>
-          <CardHeader>
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>{format(activeDay, "EEEE, dd/MM/yyyy", { locale: vi })}</CardTitle>
+                <CardTitle className="text-2xl font-bold">
+                  {format(activeDay, "EEEE, dd/MM/yyyy", { locale: vi })}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {MONTHS[activeDay.getMonth()]} {activeDay.getFullYear()}
+                </p>
               </div>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => setSelectedDay(d => {
-                  const prev = new Date(d || new Date());
-                  prev.setDate(prev.getDate() - 1);
-                  return prev;
-                })}>Prev</Button>
-                <Button variant="outline" size="sm" onClick={() => setSelectedDay(d => {
-                  const next = new Date(d || new Date());
-                  next.setDate(next.getDate() + 1);
-                  return next;
-                })}>Next</Button>
-                <Button variant="outline" onClick={() => setSelectedDay(new Date())}>Hôm nay</Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setSelectedDay(d => { const prev = new Date(d || new Date()); prev.setDate(prev.getDate() - 1); return prev; })}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setSelectedDay(d => { const next = new Date(d || new Date()); next.setDate(next.getDate() + 1); return next; })}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button variant="default" size="sm" onClick={() => setSelectedDay(new Date())}>
+                  Hôm nay
+                </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-[60px_1fr] gap-4">
-              <div className="space-y-1">
-                {displayHours.map(h => (
-                  <div key={h} className="h-12 flex items-center justify-end pr-2 text-xs text-muted-foreground">
-                    {String(h).padStart(2, "0")}:00
-                    {h === currentHour && <span className="ml-1 text-primary">●</span>}
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-1 relative">
-                {displayHours.map(h => {
-                  const hourEvents = getEventsForDay(activeDay).filter(e => e.time?.getHours() === h);
-                  return (
-                    <div key={h} className="h-12 border-b border-muted/20 flex items-center gap-2 px-2">
-                      {hourEvents.map(ev => (
-                        <div
-                          key={ev.id}
-                          onClick={() => setSelectedBooking(ev.booking)}
-                          className={cn("px-2 py-1 rounded text-white text-xs cursor-pointer shadow-sm", ev.colorClass)}
-                          title={ev.title}
-                        >
-                          {ev.booking.cameraName} • {format(ev.time!, "HH:mm")}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
-                <div className="absolute top-2 right-2 space-y-1">
-                  {getEventsForDay(activeDay).filter(e => e.type === "reserved").map(ev => (
-                    <div key={ev.id} className={cn("px-2 py-1 rounded text-white text-xs", ev.colorClass)}>
-                      {ev.title}
+
+          <CardContent className="pt-4">
+            <div className="relative">
+              <div
+                ref={timelineRef}
+                className="grid grid-cols-[70px_1fr] gap-4 max-h-96 overflow-y-auto rounded-lg border bg-card/50 scrollbar-thin scrollbar-thumb-muted"
+              >
+                {/* CỘT GIỜ */}
+                <div className="sticky top-0 z-10 bg-card border-r">
+                  {displayHours.map((h) => (
+                    <div
+                      key={h}
+                      className={cn(
+                        "h-12 flex items-center justify-end pr-3 text-xs font-medium border-b relative",
+                        h === currentHour && "bg-primary/10 text-primary font-bold"
+                      )}
+                    >
+                      {String(h).padStart(2, "0")}:00
+                      {h === currentHour && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
+                      {h === currentHour && <span className="ml-2 animate-pulse"></span>}
                     </div>
                   ))}
+                </div>
+
+                {/* CỘT SỰ KIỆN */}
+                <div className="relative">
+                  {displayHours.map((h) => {
+                    const hourEvents = getEventsForDay(activeDay).filter(e => e.time && e.time.getHours() === h);
+                    return (
+                      <div key={h} className="h-12 border-b border-muted/20 flex items-center gap-2 px-2 min-h-[48px]">
+                        {hourEvents.length === 0 ? (
+                          <div className="text-xs text-muted-foreground/50">—</div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {hourEvents.map((ev) => (
+                              <div
+                                key={ev.id}
+                                onClick={() => setSelectedBooking(ev.booking)}
+                                className={cn(
+                                  "px-3 py-1.5 rounded-md text-white text-xs font-medium cursor-pointer shadow-md transition-all hover:scale-105 whitespace-nowrap",
+                                  ev.colorClass
+                                )}
+                                title={`${ev.title} • ${ev.time ? format(ev.time, "HH:mm") : "Cả ngày"} • Thuê: ${ev.booking.startTime || "--:--"} - Trả: ${ev.booking.endTime || "--:--"}`}
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <Camera className="h-3 w-3" />
+                                  {ev.booking.cameraName}
+                                </div>
+                                <div className="text-xs opacity-90 mt-0.5">
+                                  {ev.title.split(":")[0]} • {ev.time ? format(ev.time, "HH:mm") : "Cả ngày"}
+                                  {ev.booking.startTime && ` • ${ev.booking.startTime}-${ev.booking.endTime || "?"}`}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* RESERVED */}
+                  {getEventsForDay(activeDay).some(e => e.type === "reserved") && (
+                    <div className="absolute top-3 right-3 z-20">
+                      <div className="bg-yellow-600 text-white px-3 py-1.5 rounded-md text-xs font-semibold shadow-lg">
+                        ĐANG THUÊ TRONG NGÀY
+                      </div>
+                      {getEventsForDay(activeDay)
+                        .filter(e => e.type === "reserved")
+                        .map((ev) => (
+                          <div
+                            key={ev.id}
+                            onClick={() => setSelectedBooking(ev.booking)}
+                            className="mt-2 bg-yellow-500 text-white px-3 py-2 rounded-md text-xs font-medium cursor-pointer shadow hover:bg-yellow-600 transition"
+                          >
+                            <div>{ev.booking.customerName}</div>
+                            <div className="text-xs opacity-90">
+                              {ev.booking.cameraName} • Thuê: {ev.booking.startTime || "--"} - {ev.booking.endTime || "--"}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="mt-6">
-              <h3 className="font-semibold mb-3">Sự kiện trong ngày</h3>
+            {/* DANH SÁCH SỰ KIỆN */}
+            <div className="mt-8">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <List className="h-5 w-5" />
+                Sự kiện trong ngày
+              </h3>
               {getEventsForDay(activeDay).length === 0 ? (
-                <p className="text-sm text-muted-foreground">Không có sự kiện.</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>Không có lịch giao/nhận nào hôm nay.</p>
+                </div>
               ) : (
-                <div className="space-y-2">
-                  {getEventsForDay(activeDay).map(ev => (
-                    <div key={ev.id} className="flex items-center justify-between p-3 border rounded">
-                      <div>
-                        <div className="font-medium">{ev.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {ev.time ? format(ev.time, "HH:mm") : "Cả ngày"} • {ev.booking.cameraName}
+                <div className="space-y-3">
+                  {getEventsForDay(activeDay).map((ev) => (
+                    <div key={ev.id} className="flex items-center justify-between p-4 border rounded-lg hover:border-primary/50 transition bg-card shadow-sm">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("w-3 h-3 rounded-full", ev.colorClass)} />
+                          <div className="font-semibold text-foreground">{ev.title}</div>
+                          <Badge variant="outline" className="ml-2">{ev.booking.cameraName}</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1 ml-6">
+                          {ev.time ? (
+                            <span className="font-medium text-primary">{format(ev.time, "HH:mm")}</span>
+                          ) : "Cả ngày"} • {ev.booking.customerName}
+                          {ev.booking.startTime && (
+                            <span className="ml-2">
+                              • Giờ thuê: <span className="font-medium">{ev.booking.startTime}</span> →{" "}
+                              <span className="font-medium">{ev.booking.endTime || "--:--"}</span>
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => setSelectedBooking(ev.booking)}>
-                        Chi tiết
+                      <Button size="sm" variant="default" onClick={() => setSelectedBooking(ev.booking)}>
+                        Xem chi tiết
                       </Button>
                     </div>
                   ))}
@@ -512,7 +559,7 @@ export function CalendarView() {
         </Card>
       )}
 
-      {/* ==================== DIALOG CHI TIẾT ==================== */}
+      {/* DIALOG CHI TIẾT */}
       <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -590,7 +637,7 @@ export function CalendarView() {
                             <span className={cn(
                               "font-medium",
                               log.status === "pending" && "text-yellow-600",
-                              log.status === "confirmed" && "text-blue-600",
+                              log.status === "confirmed" && "text- blue-600",
                               log.status === "active" && "text-green-600",
                               log.status === "completed" && "text-gray-600",
                               log.status === "overtime" && "text-orange-600",
