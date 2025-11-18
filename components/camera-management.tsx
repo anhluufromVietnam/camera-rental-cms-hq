@@ -359,9 +359,21 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
   }
 
   const removeImage = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index))
-    setPreviews(prev => prev.filter((_, i) => i !== index))
+    const oldImagesCount = formData.images.length
+
+    if (index < oldImagesCount) {
+      // Ảnh cũ → xoá khỏi formData.images
+      setFormData(prev => ({
+        ...prev,
+        images: prev.images.filter((_, i) => i !== index),
+      }))
+    } else {
+      // Ảnh mới → xoá khỏi files
+      const newIndex = index - oldImagesCount
+      setFiles(prev => prev.filter((_, i) => i !== newIndex))
+    }
   }
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -441,15 +453,20 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
         <Input type="file" accept="image/*" multiple onChange={handleFiles} className="mt-1" />
         {(previews.length > 0) && (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-3">
-            {previews.map((url, i) => (
+            {[...formData.images, ...files.map(f => URL.createObjectURL(f))].map((url, i) => (
               <div key={i} className="relative group rounded-lg overflow-hidden border">
                 <img src={url} alt="" className="w-full h-24 object-cover" />
-                <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition">
+                <button
+                  type="button"
+                  onClick={() => removeImage(i)}
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                >
                   <X className="h-3 w-3" />
                 </button>
               </div>
             ))}
           </div>
+
         )}
       </div>
 
