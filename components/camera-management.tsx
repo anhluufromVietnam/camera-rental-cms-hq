@@ -362,13 +362,11 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
     const oldImagesCount = formData.images.length
 
     if (index < oldImagesCount) {
-      // Ảnh cũ → xoá khỏi formData.images
       setFormData(prev => ({
         ...prev,
         images: prev.images.filter((_, i) => i !== index),
       }))
     } else {
-      // Ảnh mới → xoá khỏi files
       const newIndex = index - oldImagesCount
       setFiles(prev => prev.filter((_, i) => i !== newIndex))
     }
