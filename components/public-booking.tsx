@@ -709,24 +709,6 @@ export function PublicBooking() {
 
                 </button>
               </div>
-
-              {/* Thumbnails */}
-              <div className="absolute bottom-4 w-full flex justify-center px-4">
-                <div className="flex gap-2 overflow-x-auto pb-2 max-w-[90vw]">
-                  {selectedCamera.images.map((img, idx) => (
-                    <img
-                      key={idx}
-                      src={img}
-                      onClick={() => setActiveIndex(idx)}
-                      className={`w-16 h-16 sm:w-20 sm:h-20 rounded-md object-cover cursor-pointer transition
-              ${activeIndex === idx
-                          ? "ring-4 ring-white"
-                          : "opacity-60 hover:opacity-100"}
-            `}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
