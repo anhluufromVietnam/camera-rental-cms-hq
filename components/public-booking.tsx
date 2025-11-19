@@ -619,15 +619,15 @@ export function PublicBooking() {
               <button
                 onClick={() => setShowGallery(false)}
                 className="
-        absolute top-4 right-4
-        w-12 h-12 sm:w-14 sm:h-14
-        bg-white/20 hover:bg-white/40
-        backdrop-blur-md
-        rounded-full flex items-center justify-center
-        text-black text-3xl
-        transition shadow-lg
-        z-50
-      "
+                  absolute top-4 right-4
+                  w-12 h-12 sm:w-14 sm:h-14
+                  bg-white/20 hover:bg-white/40
+                  backdrop-blur-md
+                  rounded-full flex items-center justify-center
+                  text-black text-3xl
+                  transition shadow-lg
+                  z-50
+                "
               >
                 ✕
               </button>
@@ -745,34 +745,31 @@ export function PublicBooking() {
                   onClick={() => handleCameraSelect(camera)}
                 >
                   <div className="grid grid-cols-3 gap-1 p-2">
-                    {visibleImages.length > 0 ? (
-                      visibleImages.map((img, idx) => (
-                        <div key={idx} className="relative aspect-square overflow-hidden rounded-md">
+                    {visibleImages.map((img, idx) => (
+                      <div key={idx} className="relative aspect-square overflow-hidden rounded-md">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedCamera(camera)
+                            setShowGallery(true)
+                            setActiveIndex(idx)
+                          }}
+                          className="w-full h-full"
+                        >
                           <img
                             src={img}
                             alt={`Ảnh ${idx + 1}`}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 rounded-md"
                           />
                           {idx === 2 && extraCount > 0 && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedCamera(camera)
-                                setShowGallery(true)
-                                setActiveIndex(0)
-                              }}
-                              className="absolute inset-0 bg-black/60 text-white text-xl font-semibold flex items-center justify-center rounded-md hover:bg-black/70 transition"
-                            >
+                            <div className="absolute inset-0 bg-black/60 text-white text-xl font-semibold flex items-center justify-center rounded-md hover:bg-black/70 transition">
                               +{extraCount}
-                            </button>
+                            </div>
                           )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="col-span-3 h-32 bg-muted flex items-center justify-center rounded-md">
-                        <CameraIcon className="h-10 w-10 text-muted-foreground" />
+                        </button>
                       </div>
-                    )}
+                    ))}
                   </div>
 
                   <CardHeader className="pb-2">
