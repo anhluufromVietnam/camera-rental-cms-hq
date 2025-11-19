@@ -612,61 +612,124 @@ export function PublicBooking() {
       {step === "select" && (
         <>
           {/* Gallery Overlay */}
-          {showGallery && selectedCamera && selectedCamera.images && selectedCamera.images.length > 0 && (
-            <div className="fixed inset-0 bg-black/95 flex flex-col items-center justify-center z-[9999] px-2 sm:px-4">
+          {showGallery && selectedCamera && selectedCamera.images && selectedCamera.images?.length > 0 && (
+            <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center select-none">
+
+              {/* Close */}
               <button
                 onClick={() => setShowGallery(false)}
-                className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition text-xl"
+                className="
+        absolute top-4 right-4
+        w-12 h-12 sm:w-14 sm:h-14
+        bg-white/20 hover:bg-white/40
+        backdrop-blur-md
+        rounded-full flex items-center justify-center
+        text-black text-3xl
+        transition shadow-lg
+        z-50
+      "
               >
                 ✕
               </button>
 
-              <div className="relative w-full max-w-5xl flex items-center justify-center mt-10 sm:mt-0">
+              {/* Main image container */}
+              <div className="relative w-full max-w-6xl h-full flex items-center justify-center px-4">
+
+                {/* Prev button */}
                 <button
                   onClick={() =>
                     setActiveIndex((prev) =>
-                      prev > 0 ? prev - 1 : (selectedCamera.images?.length || 1) - 1
+                      prev > 0 ? prev - 1 : (selectedCamera.images?.length ?? 0) - 1
                     )
                   }
-                  className="absolute -left-10 sm:-left-16 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 text-black text-3xl font-bold px-4 py-2 rounded-full shadow-lg transition"
+                  className="
+                    absolute left-2 sm:left-4 md:left-10 top-1/2 -translate-y-1/2
+                    w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20
+                    bg-white/20 hover:bg-white/40 backdrop-blur-lg
+                    rounded-full flex items-center justify-center
+                    text-black transition shadow-2xl z-40
+                  "
                 >
-                  ‹
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-10 h-10 md:w-14 md:h-14"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+
+
                 </button>
 
+                {/* Image */}
                 <img
                   src={selectedCamera.images[activeIndex]}
                   alt="gallery"
-                  className="max-h-[80vh] w-auto object-contain rounded-xl shadow-lg transition-all duration-300"
+                  className="
+                    max-h-[90vh] max-w-[90vw]
+                    object-contain rounded-lg
+                    transition-all duration-300
+                    shadow-2xl
+                  "
                 />
 
+                {/* Next button */}
                 <button
                   onClick={() =>
                     setActiveIndex((prev) =>
-                      prev < (selectedCamera.images?.length || 1) - 1 ? prev + 1 : 0
+                      prev < (selectedCamera.images?.length || 0) - 1 ? prev + 1 : 0
                     )
                   }
-                  className="absolute -right-10 sm:-right-16 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 text-black text-3xl font-bold px-4 py-2 rounded-full shadow-lg transition"
+                  className=" 
+                    absolute right-2 sm:right-4 md:right-10 top-1/2 -translate-y-1/2
+                    w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20
+                    bg-white/20 hover:bg-white/40 backdrop-blur-lg
+                    rounded-full flex items-center justify-center
+                    text-black transition shadow-2xl z-40
+                  "
                 >
-                  ›
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-10 h-10 md:w-14 md:h-14"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+
+
                 </button>
               </div>
 
-              <div className="flex gap-2 mt-4 overflow-x-auto pb-3 max-w-full justify-center">
-                {selectedCamera.images.map((img, idx) => (
-                  <img
-                    key={idx}
-                    src={img}
-                    onClick={() => setActiveIndex(idx)}
-                    alt={`thumb-${idx}`}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md cursor-pointer border-2 transition ${activeIndex === idx
-                      ? "border-white opacity-100"
-                      : "border-transparent opacity-60 hover:opacity-100"
-                      }`}
-                  />
-                ))}
+              {/* Thumbnails */}
+              <div className="absolute bottom-4 w-full flex justify-center px-4">
+                <div className="flex gap-2 overflow-x-auto pb-2 max-w-[90vw]">
+                  {selectedCamera.images.map((img, idx) => (
+                    <img
+                      key={idx}
+                      src={img}
+                      onClick={() => setActiveIndex(idx)}
+                      className={`w-16 h-16 sm:w-20 sm:h-20 rounded-md object-cover cursor-pointer transition
+              ${activeIndex === idx
+                          ? "ring-4 ring-white"
+                          : "opacity-60 hover:opacity-100"}
+            `}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           )}
+
 
           {/* Camera list */}
           <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
