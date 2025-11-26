@@ -22,12 +22,6 @@ export default function BookingPage() {
                 <p className="text-xs text-foreground/60">Camera Rental</p>
               </div>
             </div>
-            <Link
-              href="/admin/login"
-              className="px-4 py-2 rounded-xl glass-light text-sm font-medium hover:glass transition-all border border-white/20"
-            >
-              Admin
-            </Link>
           </div>
         </div>
       </header>
@@ -243,15 +237,12 @@ export default function BookingPage() {
 
             <div className="flex flex-wrap gap-6 justify-center text-sm text-foreground/60 pt-6 border-t border-white/10">
               <a href="tel:0123456789" className="hover:text-pink-400 transition-colors">
-                Hotline: 0123 456 789
+                Hotline: 0369399740
               </a>
-              <a href="mailto:hello@lensandlight.vn" className="hover:text-pink-400 transition-colors">
-                hello@lensandlight.vn
-              </a>
-              <a href="#" className="hover:text-pink-400 transition-colors">
+              <a href="https://www.facebook.com/minhthu.nguyentran.37266" className="hover:text-pink-400 transition-colors">
                 Facebook
               </a>
-              <a href="#" className="hover:text-pink-400 transition-colors">
+              <a href="https://www.instagram.com/chupchoet.digicam" className="hover:text-pink-400 transition-colors">
                 Instagram
               </a>
             </div>
