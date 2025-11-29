@@ -119,6 +119,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply text-foreground;
     background: linear-gradient(135deg, #fef3c7 0%, #fce7f3 25%, #ddd6fe 50%, #fbcfe8 75%, #fed7aa 100%);
@@ -132,12 +133,39 @@
     0% {
       background-position: 0% 50%;
     }
+
     50% {
       background-position: 100% 50%;
     }
+
     100% {
       background-position: 0% 50%;
     }
+  }
+
+  @keyframes alertPulse {
+
+    0%,
+    100% {
+      transform: scale(1);
+      color: black;
+    }
+
+    50% {
+      transform: scale(1.1);
+      color: #ef4444;
+    }
+  }
+
+  .alert-blink {
+    animation: alertPulse 1s infinite;
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+
+  .blink {
+    animation: pulse-flicker 1s infinite;
   }
 }
 
@@ -149,8 +177,7 @@
 
   .glass-strong {
     @apply backdrop-blur-3xl bg-white/50 border-2 border-white/40 shadow-2xl;
-    box-shadow: 0 8px 32px 0 rgba(255, 255, 255, 0.2), inset 0 1px 0 0 rgba(255, 255, 255, 0.6), 0 0 60px
-      rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(255, 255, 255, 0.2), inset 0 1px 0 0 rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.1);
   }
 
   .glass-light {
@@ -160,7 +187,6 @@
 
   .glass-card {
     @apply backdrop-blur-2xl bg-gradient-to-br from-white/50 to-white/30 border-2 border-white/30 shadow-2xl;
-    box-shadow: 0 8px 32px 0 rgba(255, 255, 255, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.5), 0 0 40px
-      rgba(255, 192, 203, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(255, 255, 255, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.5), 0 0 40px rgba(255, 192, 203, 0.1);
   }
 }

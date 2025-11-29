@@ -16,6 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { toast } from "@/hooks/use-toast"
 
 // helper: resize image to reduce size
 const resizeImage = (file: File, maxWidth = 500): Promise<Blob> => {

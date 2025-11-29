@@ -313,15 +313,15 @@ export function PublicBooking() {
       await push(ref(db, "bookings"), newBooking)
       setShowSuccess(true)
       resetForm()
-        setTimeout(() => {
-          // Thử mở Instagram App trước
-          window.location.href = "instagram://user?username=chupchoet.digicam";
+      setTimeout(() => {
+        // Thử mở Instagram App trước
+        window.location.href = "instagram://user?username=chupchoet.digicam";
 
-          // Sau 600ms nếu không có app → fallback sang web
-          setTimeout(() => {
-            window.location.href = "https://www.instagram.com/chupchoet.digicam/";
-          }, 600);
-        }, 1200)
+        // Sau 600ms nếu không có app → fallback sang web
+        setTimeout(() => {
+          window.location.href = "https://www.instagram.com/chupchoet.digicam/";
+        }, 600);
+      }, 1200)
     } catch (err) {
       console.error("Lỗi khi tạo booking:", err)
       toast({
@@ -503,18 +503,18 @@ export function PublicBooking() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-foreground mb-2">Đặt thuê máy ảnh</h2>
-        <p className="text-muted-foreground">
+    <div className="space-y-8 px-4 sm:px-6 md:px-8">
+      <div className="text-center max-w-2xl mx-auto">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">Đặt thuê máy ảnh</h2>
+        <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
           Chọn máy ảnh và thời gian thuê phù hợp với nhu cầu của bạn
         </p>
       </div>
 
       {/* Progress Steps */}
-      <Card>
+      <Card className="max-w-4xl mx-auto">
         <CardContent className="pt-6">
-          <div className="flex justify-between">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {stepsConfig.map((stepItem, index) => {
               const Icon = stepItem.icon
               const isActive = step === stepItem.key
@@ -761,39 +761,51 @@ export function PublicBooking() {
 
       {/* Step 2: Date Selection */}
       {step === "dates" && selectedCamera && (
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="max-w-3xl mx-auto shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-xl font-semibold">
               <CameraIcon className="h-5 w-5" />
               {selectedCamera.name}
             </CardTitle>
-            <CardDescription>Chọn ngày bắt đầu và kết thúc thuê máy</CardDescription>
+            <CardDescription className="text-base">
+              Chọn ngày bắt đầu và ngày kết thúc thuê máy
+            </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-center w-full gap-3 text-sm text-muted-foreground">
+          <CardContent className="space-y-8">
+
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-primary rounded-sm" /> <span>Ngày đã chọn</span>
+                <div className="w-3 h-3 bg-primary rounded-sm" />
+                <span>Ngày đã chọn</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-400 rounded-sm" /> <span>Đã được đặt</span>
+                <div className="w-3 h-3 bg-red-400 rounded-sm" />
+                <span>Đã được đặt</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-gray-200 rounded-sm border" /> <span>Không khả dụng</span>
+                <div className="w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-sm" />
+                <span>Không khả dụng</span>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            {/* Date Selectors */}
+            <div className="grid md:grid-cols-2 gap-8">
+
+              {/* Start Date */}
               <div className="space-y-2">
-                <Label className="block mb-1 text-sm font-medium " >Ngày bắt đầu</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <Label className="text-sm font-semibold">Ngày bắt đầu</Label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Calendar */}
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                      <Button variant="outline" className="w-full justify-start text-left text-sm sm:text-base truncate">
+                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                         {bookingForm.startDate
                           ? new Date(bookingForm.startDate).toLocaleDateString("vi-VN")
-                          : "Chọn ngày"}
+                          : "Ngày nhận"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900">
@@ -814,36 +826,35 @@ export function PublicBooking() {
                           const isPast = date < new Date(new Date().setHours(0, 0, 0, 0))
                           return isBooked || isPast
                         }}
-                        modifiers={{
-                          booked: bookedDates,
-                        }}
+                        modifiers={{ booked: bookedDates }}
                         modifiersStyles={{
                           booked: {
                             backgroundColor: "#f87171",
-                            color: "white",
+                            color: "#fff",
                             borderRadius: "50%",
                           },
                         }}
-                        initialFocus
                       />
                     </PopoverContent>
                   </Popover>
 
+                  {/* Time */}
                   <Select
                     value={bookingForm.startTime || ""}
                     onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, startTime: value, endTime: "" }))
+                      setBookingForm((prev) => ({
+                        ...prev,
+                        startTime: value,
+                        endTime: "",
+                      }))
                     }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Giờ nhận" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-900">
+                    <SelectContent className="bg-white border border-gray-300 shadow-md">
                       {timeOptions.map((t) => (
-                        <SelectItem
-                          key={t.value}
-                          value={`${t.value}:00`}
-                        >
+                        <SelectItem key={t.value} value={`${t.value}:00`}>
                           {t.label}
                         </SelectItem>
                       ))}
@@ -852,16 +863,18 @@ export function PublicBooking() {
                 </div>
               </div>
 
+              {/* End Date */}
               <div className="space-y-2">
-                <Label className="block mb-1 text-sm font-medium">Ngày kết thúc</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <Label className="text-sm font-semibold">Ngày kết thúc</Label>
+
+                <div className="grid grid-cols-2 gap-3">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                      <Button variant="outline" className="w-full justify-start text-left text-sm sm:text-base truncate">
+                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                         {bookingForm.endDate
                           ? new Date(bookingForm.endDate).toLocaleDateString("vi-VN")
-                          : "Chọn ngày"}
+                          : "Ngày trả"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900">
@@ -869,7 +882,11 @@ export function PublicBooking() {
                         mode="single"
                         selected={bookingForm.endDate || undefined}
                         onSelect={(date) =>
-                          setBookingForm((prev) => ({ ...prev, endDate: date || null, endTime: "" }))
+                          setBookingForm((prev) => ({
+                            ...prev,
+                            endDate: date || null,
+                            endTime: "",
+                          }))
                         }
                         disabled={(date) => {
                           const isBeforeStart =
@@ -879,17 +896,14 @@ export function PublicBooking() {
                           )
                           return isBeforeStart || isBooked
                         }}
-                        modifiers={{
-                          booked: bookedDates,
-                        }}
+                        modifiers={{ booked: bookedDates }}
                         modifiersStyles={{
                           booked: {
                             backgroundColor: "#f87171",
-                            color: "white",
+                            color: "#fff",
                             borderRadius: "50%",
                           },
                         }}
-                        initialFocus
                       />
                     </PopoverContent>
                   </Popover>
@@ -903,7 +917,7 @@ export function PublicBooking() {
                     <SelectTrigger>
                       <SelectValue placeholder="Giờ trả" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-900">
+                    <SelectContent className="bg-white border border-gray-300 shadow-md">
                       {timeOptions.map((t) => (
                         <SelectItem
                           key={t.value}
@@ -919,44 +933,53 @@ export function PublicBooking() {
               </div>
             </div>
 
+            {/* Summary */}
             {bookingForm.startDate &&
               bookingForm.endDate &&
               bookingForm.startTime &&
               bookingForm.endTime && (
-                <Card className="bg-muted/50">
-                  <CardContent className="pt-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <Label className="text-sm font-medium">Số ngày thuê</Label>
-                        <span className="font-medium">{calculateTotalDays()} ngày</span>
-                      </div>
+                <Card className="bg-muted/40">
+                  <CardContent className="pt-4 space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Số ngày thuê</span>
+                      <span className="font-semibold">{calculateTotalDays()} ngày</span>
+                    </div>
 
-                      <div className="flex justify-between">
-                        <Label className="text-sm font-medium">Mức giá áp dụng</Label>
-                        <span className="font-medium">
-                          {getPricingInfo().label} ({getPricingInfo().rate.toLocaleString("vi-VN")}
-                          đ/ngày)
-                        </span>
-                      </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Mức giá áp dụng</span>
+                      <span className="font-semibold text-right">
+                        {getPricingInfo().label} (
+                        {getPricingInfo().rate.toLocaleString("vi-VN")}đ/ngày)
+                      </span>
+                    </div>
 
-                      <Separator />
+                    <Separator />
 
-                      <div className="flex justify-between text-lg font-semibold">
-                        <Label className="text-sm font-medium">Tổng cộng</Label>
-                        <span className="text-primary">
-                          {getPricingInfo().total.toLocaleString("vi-VN")}đ
-                        </span>
-                      </div>
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Tổng cộng</span>
+                      <span className="text-primary">
+                        {getPricingInfo().total.toLocaleString("vi-VN")}đ
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep("select")}>
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="sm:w-auto w-full"
+                onClick={() => setStep("select")}
+              >
                 Quay lại
               </Button>
-              <Button onClick={handleDateSelect} className="flex-1" disabled={!isDayValid()}>
+
+              <Button
+                className="flex-1"
+                disabled={!isDayValid()}
+                onClick={handleDateSelect}
+              >
                 Tiếp tục
               </Button>
             </div>
@@ -966,85 +989,105 @@ export function PublicBooking() {
 
       {/* Step 3: Customer Details */}
       {step === "details" && (
-        <Card className="max-w-2xl mx-auto">
+        <Card className="max-w-3xl mx-auto">
           <CardHeader>
             <CardTitle>Thông tin khách hàng</CardTitle>
             <CardDescription>
               Vui lòng điền đầy đủ thông tin để hoàn tất đặt thuê
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="block mb-1 text-sm font-medium">
-                Họ và tên *
-              </Label>
-              <Input
-                id="name"
-                value={bookingForm.customerName}
-                onChange={(e) =>
-                  setBookingForm((prev) => ({ ...prev, customerName: e.target.value }))
-                }
-                placeholder="Nhập họ và tên"
-              />
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="block mb-1 text-sm font-medium">
-                Số điện thoại *
-              </Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={bookingForm.customerPhone}
-                onChange={(e) => {
-                  const value = e.target.value
-                  setBookingForm((prev) => ({ ...prev, customerPhone: value }))
-                  if (value === "" || /^[0-9]{9,11}$/.test(value)) {
-                    setPhoneError("")
-                  } else {
-                    setPhoneError("Số điện thoại phải có từ 9-11 chữ số")
+          <CardContent className="space-y-6">
+            {/* Form grid responsive 1 → 2 cột */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
+              {/* Họ và tên */}
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-sm font-medium">
+                  Họ và tên *
+                </Label>
+                <Input
+                  id="name"
+                  value={bookingForm.customerName}
+                  onChange={(e) =>
+                    setBookingForm((prev) => ({ ...prev, customerName: e.target.value }))
                   }
-                }}
-                placeholder="Nhập số điện thoại"
-              />
-              {phoneError && <p className="text-sm text-red-500">{phoneError}</p>}
+                  placeholder="Nhập họ và tên"
+                />
+              </div>
+
+              {/* Số điện thoại */}
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-sm font-medium">
+                  Số điện thoại *
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={bookingForm.customerPhone}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setBookingForm((prev) => ({ ...prev, customerPhone: value }))
+
+                    if (value === "" || /^[0-9]{9,11}$/.test(value)) {
+                      setPhoneError("")
+                    } else {
+                      setPhoneError("Số điện thoại phải có từ 9-11 chữ số")
+                    }
+                  }}
+                  placeholder="Nhập số điện thoại"
+                />
+                {phoneError && <p className="text-sm text-red-500">{phoneError}</p>}
+              </div>
+
+              {/* Email */}
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email *
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={bookingForm.customerEmail}
+                  onChange={(e) =>
+                    setBookingForm((prev) => ({ ...prev, customerEmail: e.target.value }))
+                  }
+                  placeholder="Nhập địa chỉ email"
+                />
+              </div>
+
+              {/* Ghi chú */}
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="notes" className="text-sm font-medium">
+                  Ghi chú
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={bookingForm.notes}
+                  onChange={(e) =>
+                    setBookingForm((prev) => ({ ...prev, notes: e.target.value }))
+                  }
+                  placeholder="Ghi chú thêm về yêu cầu thuê máy (tùy chọn)"
+                  rows={3}
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="block mb-1 text-sm font-medium">
-                Email *
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={bookingForm.customerEmail}
-                onChange={(e) => {
-                  setBookingForm((prev) => ({ ...prev, customerEmail: e.target.value }))
-                }}
-                placeholder="Nhập địa chỉ email"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes" className="block mb-1 text-sm font-medium">
-                Ghi chú
-              </Label>
-              <Textarea
-                id="notes"
-                value={bookingForm.notes}
-                onChange={(e) =>
-                  setBookingForm((prev) => ({ ...prev, notes: e.target.value }))
-                }
-                placeholder="Ghi chú thêm về yêu cầu thuê máy (tùy chọn)"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep("dates")}>
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setStep("dates")}
+                className="w-full sm:w-auto"
+              >
                 Quay lại
               </Button>
-              <Button onClick={handleDetailsSubmit} className="flex-1" disabled={!isFormValid()}>
+
+              <Button
+                onClick={handleDetailsSubmit}
+                disabled={!isFormValid()}
+                className="w-full sm:w-auto sm:flex-1"
+              >
                 Xem lại đơn hàng
               </Button>
             </div>
@@ -1054,133 +1097,124 @@ export function PublicBooking() {
 
       {/* Step 4: Confirmation */}
       {step === "confirm" && selectedCamera && (
-        <Card className="max-w-6xl mx-auto w-full">
-          <CardHeader>
-            <CardTitle className="text-2xl md:text-3xl text-center font-bold ">Xác nhận đặt thuê</CardTitle>
-            <CardDescription className="text-lg font-bold text-muted-foreground text-center mt-2">
-              Khách hàng vui lòng gửi bill chuyển khoản về Fanpage, Instagram
+        <Card className="max-w-4xl mx-auto w-full">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl md:text-2xl text-center font-bold">
+              Xác nhận đặt thuê
+            </CardTitle>
+            <CardDescription className="text-center mt-1 leading-tight alert-blink">
+              Khách hàng vui lòng gửi bill chuyển khoản về Fanpage hoặc Instagram
             </CardDescription>
-            <CardDescription className="text-lg font-bold text-muted-foreground text-center mt-2">
-              Nếu không shop sẽ không xác nhận đơn            </CardDescription>
+            <CardDescription className="text-center leading-tight alert-blink">
+              Nếu không shop sẽ không xác nhận đơn
+            </CardDescription>
           </CardHeader>
 
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-          <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 border rounded-lg">
+              <div className="space-y-2">
+                {/* Camera Info */}
+                <div className="flex items-center gap-2 p-3 border rounded-lg justify-center md:justify-start mx-auto md:mx-0">
                   <CameraIcon className="h-8 w-8 text-primary" />
-                  <div>
-                    <h4 className="font-semibold">{selectedCamera.name}</h4>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="text-center md:text-left">
+                    <h3 className="font-semibold text-sm">{selectedCamera.name}</h3>
+                    <p className="text-xs text-muted-foreground">
                       {selectedCamera.brand} {selectedCamera.model}
                     </p>
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2">
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground mt-1" />
+                {/* Thông tin thuê */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+
+                  <div className="space-y-1">
+                    <div className="flex items-start gap-2 leading-tight">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium">Thời gian thuê</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="font-medium">Thời gian thuê</p>
+                        <p className="text-muted-foreground">
                           {bookingForm.startDate &&
-                            format(bookingForm.startDate, "dd/MM/yyyy", { locale: vi })}{" "}
-                          -{" "}
+                            format(bookingForm.startDate, "dd/MM/yyyy", { locale: vi })}
+                          {" - "}
                           {bookingForm.endDate &&
                             format(bookingForm.endDate, "dd/MM/yyyy", { locale: vi })}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          Giờ nhận: <b>{bookingForm.startTime || "Chưa chọn"}</b> | Giờ trả:{" "}
-                          <b>{bookingForm.endTime || "Chưa chọn"}</b>
+                        <p className="text-muted-foreground">
+                          Nhận: <b>{bookingForm.startTime || "Chưa chọn"}</b> | Trả: <b>{bookingForm.endTime || "Chưa chọn"}</b>
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 leading-tight">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium">Số ngày</p>
-                        <p className="text-sm text-muted-foreground">
-                          {calculateTotalDays()} ngày
-                        </p>
+                        <p className="font-medium">Số ngày</p>
+                        <p className="text-muted-foreground">{calculateTotalDays()} ngày</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 leading-tight">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium">Khách hàng</p>
-                        <p className="text-sm text-muted-foreground">
-                          {bookingForm.customerName}
-                        </p>
+                        <p className="font-medium">Khách hàng</p>
+                        <p className="text-muted-foreground">{bookingForm.customerName}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 leading-tight">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium">Liên hệ</p>
-                        <p className="text-sm text-muted-foreground">
-                          {bookingForm.customerEmail}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {bookingForm.customerPhone}
-                        </p>
+                        <p className="font-medium">Liên hệ</p>
+                        <p className="text-muted-foreground">{bookingForm.customerEmail}</p>
+                        <p className="text-muted-foreground">{bookingForm.customerPhone}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Notes */}
                 {bookingForm.notes && (
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm font-medium mb-1">Ghi chú:</p>
-                    <p className="text-sm text-muted-foreground">{bookingForm.notes}</p>
+                  <div className="p-2 bg-muted/50 rounded-lg text-sm leading-tight">
+                    <p className="font-medium mb-1">Ghi chú:</p>
+                    <p className="text-muted-foreground">{bookingForm.notes}</p>
                   </div>
                 )}
 
+                {/* Total */}
                 <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="pt-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-lg font-semibold">
-                        <span>Tổng cộng:</span>
-                        <span className="text-primary">
-                          {calculateTotalAmount().toLocaleString("vi-VN")}đ
-                        </span>
-                      </div>
+                  <CardContent className="py-2">
+                    <div className="flex justify-between text-base font-semibold">
+                      <span>Tổng cộng:</span>
+                      <span className="text-primary">
+                        {calculateTotalAmount().toLocaleString("vi-VN")}đ
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="flex flex-col items-center justify-center space-y-4 border-l pl-6 text-center">
-                <h3 className="text-lg font-semibold">Thông tin thanh toán</h3>
+              <div className="flex flex-col items-center text-center space-y-3 md:border-l md:pl-4">
+                <h3 className="text-base font-semibold">Thông tin thanh toán</h3>
 
                 {paymentInfo ? (
                   <>
                     {paymentInfo.qrUrl && (
-                      <div className="w-48 h-48 border rounded-lg overflow-hidden bg-white">
+                      <div className="w-36 h-36 border rounded-lg overflow-hidden bg-white">
                         <img
                           src={paymentInfo.qrUrl}
-                          alt="Mã QR thanh toán"
-                          className="object-contain w-full h-full p-2"
+                          alt="QR"
+                          className="object-contain w-full h-full p-1"
                         />
                       </div>
                     )}
 
-                    <div className="text-sm mt-2 space-y-1">
-                      <p>
-                        Ngân hàng: <b>{paymentInfo.bankName}</b>
-                      </p>
-                      <p>
-                        Số TK: <b>{paymentInfo.accountNumber}</b>
-                      </p>
-                      <p>
-                        Chủ TK: <b>{paymentInfo.accountHolder}</b>
-                      </p>
+                    <div className="text-sm space-y-1 leading-tight">
+                      <p>Ngân hàng: <b>{paymentInfo.bankName}</b></p>
+                      <p>Số TK: <b>{paymentInfo.accountNumber}</b></p>
+                      <p>Chủ TK: <b>{paymentInfo.accountHolder}</b></p>
                       <p>
                         Nội dung:{" "}
                         <b>
@@ -1197,20 +1231,19 @@ export function PublicBooking() {
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    Đang tải thông tin thanh toán...
-                  </p>
+                  <p className="text-sm text-muted-foreground italic">Đang tải...</p>
                 )}
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button variant="outline" onClick={() => setStep("details")}>
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <Button variant="outline" onClick={() => setStep("details")} className="w-full sm:w-auto">
                 Quay lại
               </Button>
               <Button
                 onClick={handleConfirmSubmit}
-                className="flex-1"
+                className="w-full sm:flex-1"
                 disabled={isConfirmSubmitting}
               >
                 {isConfirmSubmitting ? "Đang xử lý..." : "Xác nhận & Thanh toán"}
@@ -1219,6 +1252,7 @@ export function PublicBooking() {
           </CardContent>
         </Card>
       )}
+
 
       {/* Success Dialog */}
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
