@@ -97,40 +97,6 @@ export function PublicBooking() {
     return () => clearTimeout(timer)
   }, [showSuccess])
 
-  // // Fetch booked dates for the selected camera
-  // useEffect(() => {
-  //   if (!selectedCamera?.id) return
-
-  //   const fetchBookedDates = async () => {
-  //     try {
-  //       const snap = await get(ref(db, "bookings"))
-  //       if (!snap.exists()) return
-
-  //       const allBookings = Object.values(snap.val())
-
-  //       const dates: Date[] = []
-
-  //       allBookings.forEach((b: any) => {
-  //         if (!b || b.cameraId !== selectedCamera.id) return
-  //         if (!["pending", "confirmed"].includes(b.status)) return
-
-  //         const start = new Date(b.startDate)
-  //         const end = new Date(b.endDate)
-
-  //         // Lấy tất cả các ngày trong khoảng start → end
-  //         const current = new Date(start)
-  //         while (current <= end) {
-  //           dates.push(new Date(current))
-  //           current.setDate(current.getDate() + 1)
-  //         }
-  //       })
-
-  //       setBookedDates(dates)
-  //     } catch (err) {
-  //       console.error("Lỗi khi tải ngày đã đặt:", err)
-  //     }
-  //   }
-
   // Fetch available cameras (only active ones)
   useEffect(() => {
     const camerasRef = ref(db, "cameras")
@@ -310,29 +276,6 @@ export function PublicBooking() {
       })
       return
     }
-
-    // Validate email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(bookingForm.customerEmail)) {
-      toast({
-        title: "Email không hợp lệ",
-        description: "Vui lòng nhập địa chỉ email hợp lệ",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Validate phone
-    const phoneRegex = /^[0-9]{9,11}$/
-    if (!phoneRegex.test(bookingForm.customerPhone)) {
-      toast({
-        title: "Số điện thoại không hợp lệ",
-        description: "Số điện thoại phải có từ 9-11 chữ số",
-        variant: "destructive",
-      })
-      return
-    }
-
     setStep("confirm")
   }
 
@@ -370,9 +313,15 @@ export function PublicBooking() {
       await push(ref(db, "bookings"), newBooking)
       setShowSuccess(true)
       resetForm()
-      setTimeout(() => {
-        window.open("https://www.facebook.com/messages/t/26322425147401520", "_blank")
-      }, 1200)
+        setTimeout(() => {
+          // Thử mở Instagram App trước
+          window.location.href = "instagram://user?username=chupchoet.digicam";
+
+          // Sau 600ms nếu không có app → fallback sang web
+          setTimeout(() => {
+            window.location.href = "https://www.instagram.com/chupchoet.digicam/";
+          }, 600);
+        }, 1200)
     } catch (err) {
       console.error("Lỗi khi tạo booking:", err)
       toast({
@@ -410,8 +359,8 @@ export function PublicBooking() {
       bookingForm.customerPhone &&
       bookingForm.startDate &&
       bookingForm.endDate &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail) &&
       /^[0-9]{9,11}$/.test(bookingForm.customerPhone)
+      // /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail) 
     )
   }
 
@@ -1105,11 +1054,16 @@ export function PublicBooking() {
 
       {/* Step 4: Confirmation */}
       {step === "confirm" && selectedCamera && (
-        <Card className="max-w-4xl mx-auto w-full">
+        <Card className="max-w-6xl mx-auto w-full">
           <CardHeader>
-            <CardTitle>Xác nhận đặt thuê</CardTitle>
-            <CardDescription>Vui lòng kiểm tra lại thông tin trước khi thanh toán</CardDescription>
+            <CardTitle className="text-2xl md:text-3xl text-center font-bold ">Xác nhận đặt thuê</CardTitle>
+            <CardDescription className="text-lg font-bold text-muted-foreground text-center mt-2">
+              Khách hàng vui lòng gửi bill chuyển khoản về Fanpage, Instagram
+            </CardDescription>
+            <CardDescription className="text-lg font-bold text-muted-foreground text-center mt-2">
+              Nếu không shop sẽ không xác nhận đơn            </CardDescription>
           </CardHeader>
+
 
           <CardContent className="space-y-6">
             <div className="grid md:grid-cols-2 gap-8">
