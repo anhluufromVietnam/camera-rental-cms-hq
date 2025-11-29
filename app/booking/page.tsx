@@ -1,6 +1,6 @@
 "use client"
 import { PublicBooking } from "@/components/public-booking"
-import { Camera, Heart, Shield, Clock, Star, Sparkles } from "lucide-react"
+import { Camera, Heart, Shield, Clock, Star, Sparkles, Phone } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { FacebookGallery } from "@/components/facebook-gallery"
@@ -11,9 +11,10 @@ export default function BookingPage() {
       <header className="glass-strong sticky top-0 z-50 border-b border-white/20">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
+
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-2xl bg-gradient-to-br from-pink-400/30 to-purple-400/30 backdrop-blur-sm">
-                <Camera className="h-6 w-6 text-pink-500" />
+                <Camera className="h-8 w-8 text-pink-600" />
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
@@ -22,6 +23,50 @@ export default function BookingPage() {
                 <p className="text-xs text-foreground/60">Camera Rental</p>
               </div>
             </div>
+
+            <div className="flex items-center gap-6">
+              <a className="flex items-center gap-2 hover:text-pink-400 transition-colors font-medium text-sm">
+                <Phone size={24} className="text-pink-400" />
+                <p className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent"> Hotline: 0369399740</p>
+              </a>
+
+              <div className="flex items-center gap-8">
+                <a
+                  href="https://www.facebook.com/minhthu.nguyentran.37266"
+                  target="_blank"
+                  className="hover:scale-110 transition-transform text-pink-500"
+                >
+                  <img
+                    src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/facebook.svg"
+                    alt="Facebook"
+                    className="w-10 h-10 opacity-90 hover:opacity-100"
+                  />
+                </a>
+                <a
+                  href="https://www.instagram.com/chupchoet.digicam"
+                  target="_blank"
+                  className="hover:scale-110 transition-transform"
+                >
+                  <img
+                    src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/instagram.svg"
+                    alt="Instagram"
+                    className="w-10 h-10 opacity-90 hover:opacity-100"
+                  />
+                </a>
+                <a
+                  href="https://www.tiktok.com/@chupchoet.digicam"
+                  target="_blank"
+                  className="hover:scale-110 transition-transform"
+                >
+                  <img
+                    src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg"
+                    alt="TikTok"
+                    className="w-10 h-10 opacity-90 hover:opacity-100"
+                  />
+                </a>
+              </div>
+            </div>
+
           </div>
         </div>
       </header>
@@ -43,8 +88,8 @@ export default function BookingPage() {
             </h2>
 
             <p className="text-xl text-foreground/70 max-w-2xl mx-auto leading-relaxed">
-          Ghi lại khoảnh khắc theo cách của bạn!
-          Trải nghiệm dịch vụ thuê máy ảnh chuyên nghiệp, dành cho mọi ai yêu nhiếp ảnh và muốn kể câu chuyện của chính mình qua ống kính.
+              Ghi lại khoảnh khắc theo cách của bạn!
+              Trải nghiệm dịch vụ thuê máy ảnh chuyên nghiệp, dành cho mọi ai yêu nhiếp ảnh và muốn kể câu chuyện của chính mình qua ống kính.
             </p>
 
             <div className="flex flex-wrap gap-4 justify-center pt-4">
@@ -140,18 +185,18 @@ export default function BookingPage() {
             <div className="glass-card rounded-3xl p-8 md:p-12 space-y-6 border border-white/20">
               <p className="text-lg text-foreground/80 leading-relaxed">
                 <span className="text-2xl text-pink-400 font-serif">"</span>
-          Từ niềm đam mê với nhiếp ảnh và khát khao lan tỏa cảm hứng sáng tạo, chúng mình đã quyết định đầu tư hàng trăm triệu đồng cho những chiếc máy ảnh Fujifilm chất lượng cao, để ai cũng có thể chạm đến trải nghiệm chụp ảnh chuyên nghiệp — chỉ từ 100k.
+                Từ niềm đam mê với nhiếp ảnh và khát khao lan tỏa cảm hứng sáng tạo, chúng mình đã quyết định đầu tư hàng trăm triệu đồng cho những chiếc máy ảnh Fujifilm chất lượng cao, để ai cũng có thể chạm đến trải nghiệm chụp ảnh chuyên nghiệp — chỉ từ 100k.
               </p>
 
               <p className="text-lg text-foreground/80 leading-relaxed">
-          Chúng mình hiểu cảm giác phân vân khi muốn mua máy nhưng sợ ít dùng, nên #chupchoet.digicam ra đời để bạn có thể trải nghiệm nhiều dòng máy khác nhau, khám phá góc nhìn mới, mà chi phí chỉ bằng vài ly trà sữa.
+                Chúng mình hiểu cảm giác phân vân khi muốn mua máy nhưng sợ ít dùng, nên #chupchoet.digicam ra đời để bạn có thể trải nghiệm nhiều dòng máy khác nhau, khám phá góc nhìn mới, mà chi phí chỉ bằng vài ly trà sữa.
               </p>
 
               <p className="text-lg text-foreground/80 leading-relaxed">
-          Không chỉ cho thuê thiết bị, chúng mình còn muốn đồng hành cùng bạn trong từng khung hình:
-          💫 Tặng preset màu độc quyền giúp ảnh có hồn hơn
-          🤝 Hỗ trợ tận tình từ khi nhận máy đến lúc trả
-          🎒 Phụ kiện đầy đủ từ A–Z, để bạn chỉ việc mang theo niềm cảm hứng và bắt đầu kể câu chuyện của riêng mình qua ống kính.
+                Không chỉ cho thuê thiết bị, chúng mình còn muốn đồng hành cùng bạn trong từng khung hình:
+                💫 Tặng preset màu độc quyền giúp ảnh có hồn hơn
+                🤝 Hỗ trợ tận tình từ khi nhận máy đến lúc trả
+                🎒 Phụ kiện đầy đủ từ A–Z, để bạn chỉ việc mang theo niềm cảm hứng và bắt đầu kể câu chuyện của riêng mình qua ống kính.
                 <span className="text-2xl text-pink-400 font-serif">"</span>
               </p>
 
@@ -234,18 +279,6 @@ export default function BookingPage() {
             </div>
 
             <p className="text-foreground/70">Ghi lại những khoảnh khắc đẹp nhất của bạn với thiết bị chuyên nghiệp</p>
-
-            <div className="flex flex-wrap gap-6 justify-center text-sm text-foreground/60 pt-6 border-t border-white/10">
-              <a href="tel:0123456789" className="hover:text-pink-400 transition-colors">
-                Hotline: 0369399740
-              </a>
-              <a href="https://www.facebook.com/minhthu.nguyentran.37266" className="hover:text-pink-400 transition-colors">
-                Facebook
-              </a>
-              <a href="https://www.instagram.com/chupchoet.digicam" className="hover:text-pink-400 transition-colors">
-                Instagram
-              </a>
-            </div>
 
             <p className="text-sm text-foreground/50 pt-6">
               © 2025 chupchoet.digicam. Made with <Heart className="inline h-4 w-4 text-pink-400" /> for photography lovers
