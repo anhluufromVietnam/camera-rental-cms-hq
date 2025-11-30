@@ -115,7 +115,7 @@ export function SettingsImage() {
       setPreviewUrl("")
       await fetchSettings()
 
-      setSuccessDialog(true) 
+      setSuccessDialog(true)
       toast({
         title: "Thành công",
         description: "Cài đặt thanh toán đã được lưu",
@@ -147,88 +147,56 @@ export function SettingsImage() {
 
   return (
     <>
-      <div className="max-w-2xl mx-auto font-[Be_Vietnam_Pro] text-[15px] text-foreground font-semibold">
-        <Card className="max-w-xl mx-auto border border-border/60 shadow-md rounded-2xl p-6 space-y-6 font-[Be_Vietnam_Pro]">
+      <div className="w-full max-w-5xl mx-auto font-[Be_Vietnam_Pro] text-[15px] text-foreground font-semibold px-2 sm:px-4">
+        <Card className="w-full border border-border/60 shadow-md rounded-2xl p-4 sm:p-6 space-y-6">
           <CardHeader className="pb-0">
             <CardTitle className="text-xl font-bold flex items-center gap-2">
               ⚙️ Cài đặt thanh toán
             </CardTitle>
           </CardHeader>
-
           <CardContent className="space-y-6 pt-2">
             {/* QR Image */}
-            <div className="space-y-2">
-              <Label className="font-medium">Ảnh mã QR thanh toán</Label>
-              <div className="w-44 h-44 border rounded-xl overflow-hidden bg-white flex items-center justify-center shadow-sm mx-auto">
+            <div className="space-y-2 flex flex-col items-center">
+              <Label className="font-medium text-center">Ảnh mã QR thanh toán</Label>
+              <div className="w-40 h-40 sm:w-44 sm:h-44 border rounded-xl overflow-hidden bg-white flex items-center justify-center shadow-sm">
                 {previewUrl || qrUrl ? (
-                  <img
-                    src={previewUrl || qrUrl}
-                    alt="QR"
-                    className="object-contain w-full h-full p-2"
-                  />
+                  <img src={previewUrl || qrUrl} alt="QR" className="object-contain w-full h-full p-2" />
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Chưa có ảnh</p>
+                  <p className="text-sm text-muted-foreground italic text-center">Chưa có ảnh</p>
                 )}
               </div>
-              <div className="flex justify-center">
-                <input
-                  id="file-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleSelectFile}
-                />
-                <Button
-                  onClick={() => document.getElementById("file-upload")?.click()}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Upload className="h-4 w-4" /> Chọn ảnh QR
-                </Button>
-              </div>
+              <input id="file-upload" type="file" accept="image/*" className="hidden" onChange={handleSelectFile} />
+              <Button onClick={() => document.getElementById("file-upload")?.click()} variant="outline" size="sm" className="flex items-center gap-2 mt-2">
+                <Upload className="h-4 w-4" /> Chọn ảnh QR
+              </Button>
             </div>
 
             {/* Bank Info */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-200 rounded-xl p-6 shadow-sm space-y-5">
+            <div className="w-full space-y-5 px-2 sm:px-0">
               <h4 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
                 💳 Thông tin chuyển khoản
               </h4>
 
-              <div className="space-y-2">
-                <Label className="text-blue-900 font-medium">Ngân hàng</Label>
-                <Input
-                  placeholder="VD: Vietcombank"
-                  value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                />
-              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <div className="space-y-2">
+                  <Label className="text-blue-900 font-medium font-bold">Ngân hàng</Label>
+                  <Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="VD: Vietcombank" />
+                </div>
 
-              <div className="space-y-2">
-                <Label className="text-blue-900 font-medium">Số tài khoản</Label>
-                <Input
-                  placeholder="VD: 0123456789"
-                  value={accountNumber}
-                  onChange={(e) => setAccountNumber(e.target.value)}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label className="text-blue-900 font-medium font-bold">Số tài khoản</Label>
+                  <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="VD: 0123456789" />
+                </div>
 
-              <div className="space-y-2">
-                <Label className="text-blue-900 font-medium">Chủ tài khoản</Label>
-                <Input
-                  placeholder="VD: CONG TY QUAN LY TOA NHA"
-                  value={accountHolder}
-                  onChange={(e) => setAccountHolder(e.target.value)}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label className="text-blue-900 font-medium font-bold">Chủ tài khoản</Label>
+                  <Input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="VD: CONG TY QUAN LY TOA NHA" />
+                </div>
 
-              <div className="space-y-2">
-                <Label className="text-blue-900 font-medium">Cú pháp chuyển khoản</Label>
-                <Input
-                  placeholder="VD: Thanh toán [Tên] - [Mã đơn]"
-                  value={paymentSyntax}
-                  onChange={(e) => setPaymentSyntax(e.target.value)}
-                />
+                <div className="space-y-2">
+                  <Label className="text-blue-900 font-medium font-bold">Cú pháp chuyển khoản</Label>
+                  <Input value={paymentSyntax} onChange={(e) => setPaymentSyntax(e.target.value)} placeholder="VD: Thanh toán [Tên] - [Mã đơn]" />
+                </div>
               </div>
             </div>
 
@@ -236,7 +204,7 @@ export function SettingsImage() {
             <Button
               onClick={handleSaveSettings}
               disabled={saving}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-5 font-semibold rounded-xl shadow-md"
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-4 font-semibold rounded-xl shadow-md"
             >
               {saving ? (
                 <>
@@ -255,83 +223,6 @@ export function SettingsImage() {
       </div>
 
       {/* ✅ Success Dialog */}
-      <Dialog open={successDialog} onOpenChange={setSuccessDialog}>
-        <DialogContent className="sm:max-w-md text-center">
-          <DialogHeader>
-            <DialogTitle className="text-green-600 flex justify-center items-center gap-2 text-xl">
-              <CheckCircle2 className="w-6 h-6" />
-              Lưu thành công!
-            </DialogTitle>
-            <DialogDescription className="text-gray-600 pt-2">
-              Cài đặt thanh toán của bạn đã được lưu lại thành công
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Bank Info */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-200 rounded-xl p-6 shadow-sm space-y-5">
-            <h4 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
-              💳 Thông tin chuyển khoản
-            </h4>
-
-            <div className="space-y-2">
-              <Label className="text-blue-900 font-medium">Ngân hàng</Label>
-              <Input
-                placeholder="VD: Vietcombank"
-                value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-blue-900 font-medium">Số tài khoản</Label>
-              <Input
-                placeholder="VD: 0123456789"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-blue-900 font-medium">Chủ tài khoản</Label>
-              <Input
-                placeholder="VD: CONG TY QUAN LY TOA NHA"
-                value={accountHolder}
-                onChange={(e) => setAccountHolder(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-blue-900 font-medium">Cú pháp chuyển khoản</Label>
-              <Input
-                placeholder="VD: Thanh toán [Tên] - [Mã đơn]"
-                value={paymentSyntax}
-                onChange={(e) => setPaymentSyntax(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Save Button */}
-          <Button
-            onClick={handleSaveSettings}
-            disabled={saving}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-5 font-semibold rounded-xl shadow-md"
-          >
-            {saving ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Đang lưu...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                Lưu cài đặt
-              </>
-            )}
-          </Button>
-        </DialogContent>
-      </Dialog>
-            
-      {/* Success Dialog */}
       <Dialog open={successDialog} onOpenChange={setSuccessDialog}>
         <DialogContent className="sm:max-w-md text-center">
           <DialogHeader>

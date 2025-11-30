@@ -15,6 +15,8 @@ export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const [isScrollingDown, setIsScrollingDown] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   useEffect(() => {
     const authStatus = localStorage.getItem("adminAuth")
@@ -30,6 +32,20 @@ export default function AdminDashboard() {
     localStorage.removeItem("adminAuth")
     router.push("/admin/login")
   }
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > lastScrollY && window.scrollY > 50) {
+        setIsScrollingDown(true); // scroll xuống -> ẩn header
+      } else {
+        setIsScrollingDown(false); // scroll lên -> hiện header
+      }
+      setLastScrollY(window.scrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
 
   if (loading) {
     return (
@@ -47,17 +63,28 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen">
-      <header className="glass-strong border-b-2 border-white/30 sticky top-0 z-50">
+      <header
+        className={`glass-strong border-b-2 border-white/30 sticky top-0 z-50 transition-transform duration-300 ${
+          isScrollingDown ? "-translate-y-full" : "translate-y-0"
+        }`}
+      >
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0">
+            {/* Logo */}
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 backdrop-blur-xl">
                 <Camera className="h-8 w-8 text-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-foreground">Camera Rental CMS</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+                Camera Rental CMS
+              </h1>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-foreground/70 font-medium">Admin Dashboard</span>
+
+            {/* Right content */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mt-2 md:mt-0">
+              <span className="text-sm text-foreground/70 font-medium">
+                Admin Dashboard
+              </span>
               <Button
                 variant="outline"
                 size="sm"

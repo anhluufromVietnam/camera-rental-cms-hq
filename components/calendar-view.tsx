@@ -314,108 +314,116 @@ export function CalendarView() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold text-foreground">Lịch thuê máy</h2>
-        <p className="text-muted-foreground">Xem lịch theo tháng hoặc chi tiết theo ngày</p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Lịch thuê máy</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">Xem lịch theo tháng hoặc chi tiết theo ngày</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant={viewMode === "month" ? "default" : "outline"} onClick={() => setViewMode("month")}>
-          Tháng
-        </Button>
-        <Button variant={viewMode === "day" ? "default" : "outline"} onClick={() => { setViewMode("day"); setSelectedDay(new Date()); }}>
-          Ngày
-        </Button>
-        <div className="ml-auto flex items-center gap-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant={viewMode === "month" ? "default" : "outline"} onClick={() => setViewMode("month")}>
+            Tháng
+          </Button>
+          <Button variant={viewMode === "day" ? "default" : "outline"} onClick={() => { setViewMode("day"); setSelectedDay(new Date()); }}>
+            Ngày
+          </Button>
+        </div>
+
+        <div className="mt-2 sm:mt-0 sm:ml-auto flex items-center gap-1 flex-wrap">
           <Button variant="outline" size="icon" onClick={() => navigateMonth("prev")}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="px-3 text-center">
-            <div className="font-semibold">{MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</div>
+            <div className="font-semibold text-sm sm:text-base">{MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</div>
           </div>
           <Button variant="outline" size="icon" onClick={() => navigateMonth("next")}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="outline" onClick={goToToday}>Hôm nay</Button>
+          <Button variant="outline" size="sm" onClick={goToToday}>Hôm nay</Button>
         </div>
       </div>
 
       {/* MONTH VIEW */}
       {viewMode === "month" && (
         <Card>
-          <CardContent className="p-0">
-            <div className="grid grid-cols-7 gap-px bg-border border-b border-border">
-              {WEEKDAYS.map(d => (
-                <div key={d} className="bg-card p-2 text-center text-xs font-medium text-muted-foreground">
-                  {d}
-                </div>
-              ))}
-            </div>
-            <div className="space-y-px">
-              {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map((_, weekIdx) => {
-                const weekDays = calendarDays.slice(weekIdx * 7, weekIdx * 7 + 7);
-                return (
-                  <div key={weekIdx} className="bg-card">
-                    <div className="grid grid-cols-7 gap-px bg-border">
-                      {weekDays.map((day, i) => {
-                        const bookingsOfDay = bookings.filter(b =>
-                          isSameDay(normalizeToDate(b.startDate), day.date) ||
-                          isSameDay(normalizeToDate(b.endDate), day.date) ||
-                          (normalizeToDate(b.startDate) < day.date && normalizeToDate(b.endDate) > day.date)
-                        );
-                        return (
-                          <div
-                            key={i}
-                            onClick={() => openDay(day.date)}
-                            className={cn(
-                              "min-h-24 p-2 bg-card cursor-pointer hover:bg-muted/50 transition relative flex flex-col",
-                              !day.isCurrentMonth && "bg-muted/20 text-muted-foreground"
-                            )}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className={cn("text-sm font-medium", isSameDay(day.date, new Date()) && "text-primary font-bold")}>
-                                {day.date.getDate()}
-                              </span>
-                              {isSameDay(day.date, new Date()) && <Badge className="h-5 text-xs">Hôm nay</Badge>}
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              {bookingsOfDay.slice(0, 3).map((b, idx) => (
-                                <div
-                                  key={b.id + idx}
-                                  onClick={(e) => { e.stopPropagation(); setSelectedBooking(b); }}
-                                  className={cn("px-2 py-1 rounded text-white text-xs truncate shadow-sm cursor-pointer", STATUS_COLORS[b.status])}
-                                  title={`${b.customerName} — ${b.cameraName}`}
-                                >
-                                  {b.customerName}
-                                </div>
-                              ))}
-                              {bookingsOfDay.length > 3 && <div className="text-xs text-muted-foreground">+{bookingsOfDay.length - 3} khác</div>}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+          <CardContent className="p-0 overflow-auto">
+            <div className="inline-block min-w-full">
+              {/* Header ngày trong tuần */}
+              <div className="grid grid-cols-7 gap-px bg-border">
+                {WEEKDAYS.map(d => (
+                  <div key={d} className="bg-card p-2 text-center text-xs font-medium text-muted-foreground truncate">
+                    {d}
                   </div>
-                );
-              })}
+                ))}
+              </div>
+
+              {/* Các tuần */}
+              <div className="grid gap-px" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                {calendarDays.map((day, i) => {
+                  const bookingsOfDay = bookings.filter(b =>
+                    isSameDay(normalizeToDate(b.startDate), day.date) ||
+                    isSameDay(normalizeToDate(b.endDate), day.date) ||
+                    (normalizeToDate(b.startDate) < day.date && normalizeToDate(b.endDate) > day.date)
+                  );
+
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => openDay(day.date)}
+                      className={cn(
+                        "relative flex flex-col items-start p-2 bg-card cursor-pointer hover:bg-muted/50 transition",
+                        !day.isCurrentMonth && "bg-muted/20 text-muted-foreground"
+                      )}
+                      style={{ aspectRatio: '1 / 1' }} // giữ vuông
+                    >
+                      {/* Ngày + badge */}
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className={cn("text-sm font-medium", isSameDay(day.date, new Date()) && "text-primary font-bold")}>
+                          {day.date.getDate()}
+                        </span>
+                        {isSameDay(day.date, new Date()) && <Badge className="h-5 text-xs">Hôm nay</Badge>}
+                      </div>
+
+                      {/* Bookings */}
+                      <div className="flex flex-col gap-1 w-full overflow-hidden">
+                        {bookingsOfDay.slice(0, 3).map((b, idx) => (
+                          <div
+                            key={b.id + idx}
+                            onClick={(e) => { e.stopPropagation(); setSelectedBooking(b); }}
+                            className={cn("px-1 py-0.5 rounded text-white text-xs truncate shadow-sm cursor-pointer w-full", STATUS_COLORS[b.status])}
+                            title={`${b.customerName} — ${b.cameraName}`}
+                          >
+                            {b.customerName}
+                          </div>
+                        ))}
+                        {bookingsOfDay.length > 3 && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            +{bookingsOfDay.length - 3} khác
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
+
       )}
 
-      {/* DAY VIEW – ĐÃ FIX 100% LỖI */}
       {viewMode === "day" && (
         <Card className="border shadow-sm">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <CardTitle className="text-2xl font-bold">
+                <CardTitle className="text-xl sm:text-2xl font-bold">
                   {format(activeDay, "EEEE, dd/MM/yyyy", { locale: vi })}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   {MONTHS[activeDay.getMonth()]} {activeDay.getFullYear()}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => setSelectedDay(d => { const prev = new Date(d || new Date()); prev.setDate(prev.getDate() - 1); return prev; })}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -430,92 +438,72 @@ export function CalendarView() {
           </CardHeader>
 
           <CardContent className="pt-4">
-            <div className="relative">
+            <div className="overflow-auto max-h-[calc(10*3rem)]">
               <div
                 ref={timelineRef}
-                className="grid grid-cols-[70px_1fr] gap-4 max-h-96 overflow-y-auto rounded-lg border bg-card/50 scrollbar-thin scrollbar-thumb-muted"
+                className="w-full grid grid-cols-[60px_1fr] max-h-[70vh] sm:max-h-[80vh] border rounded-lg bg-card/50 scrollbar-thin scrollbar-thumb-muted"
               >
-                {/* CỘT GIỜ */}
+                {/* Cột giờ */}
                 <div className="sticky top-0 z-10 bg-card border-r">
                   {displayHours.map((h) => (
                     <div
                       key={h}
                       className={cn(
-                        "h-12 flex items-center justify-end pr-3 text-xs font-medium border-b relative",
+                        "h-12 flex items-center justify-end pr-3 text-sm font-medium border-b relative",
                         h === currentHour && "bg-primary/10 text-primary font-bold"
                       )}
                     >
                       {String(h).padStart(2, "0")}:00
                       {h === currentHour && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
-                      {h === currentHour && <span className="ml-2 animate-pulse"></span>}
                     </div>
                   ))}
                 </div>
 
-                {/* CỘT SỰ KIỆN */}
-                <div className="relative">
+                {/* Cột sự kiện */}
+                <div className="relative flex flex-col">
                   {displayHours.map((h) => {
-                    const hourEvents = getEventsForDay(activeDay).filter(e => e.time && e.time.getHours() === h);
+                    const hourEvents = getEventsForDay(activeDay).filter(
+                      (e) => e.time && e.time.getHours() === h
+                    );
                     return (
-                      <div key={h} className="h-12 border-b border-muted/20 flex items-center gap-2 px-2 min-h-[48px]">
+                      <div
+                        key={h}
+                        className="h-12 border-b border-muted/20 flex items-center gap-1 px-1 sm:px-2"
+                      >
                         {hourEvents.length === 0 ? (
-                          <div className="text-xs text-muted-foreground/50">—</div>
+                          <div className="text-xs text-muted-foreground/50 truncate">—</div>
                         ) : (
-                          <div className="flex flex-wrap gap-2">
-                            {hourEvents.map((ev) => (
-                              <div
-                                key={ev.id}
-                                onClick={() => setSelectedBooking(ev.booking)}
-                                className={cn(
-                                  "px-3 py-1.5 rounded-md text-white text-xs font-medium cursor-pointer shadow-md transition-all hover:scale-105 whitespace-nowrap",
-                                  ev.colorClass
-                                )}
-                                title={`${ev.title} • ${ev.time ? format(ev.time, "HH:mm") : "Cả ngày"} • Thuê: ${ev.booking.startTime || "--:--"} - Trả: ${ev.booking.endTime || "--:--"}`}
-                              >
-                                <div className="flex items-center gap-1.5">
-                                  <Camera className="h-3 w-3" />
-                                  {ev.booking.cameraName}
-                                </div>
-                                <div className="text-xs opacity-90 mt-0.5">
-                                  {ev.title.split(":")[0]} • {ev.time ? format(ev.time, "HH:mm") : "Cả ngày"}
-                                  {ev.booking.startTime && ` • ${ev.booking.startTime}-${ev.booking.endTime || "?"}`}
-                                </div>
+                          hourEvents.map((ev) => (
+                            <div
+                              key={ev.id}
+                              onClick={() => setSelectedBooking(ev.booking)}
+                              className={cn(
+                                "px-2 py-1 rounded-md text-white text-xs font-medium cursor-pointer shadow-md transition-all hover:scale-105 whitespace-nowrap truncate",
+                                ev.colorClass
+                              )}
+                              title={`${ev.title} • ${ev.time ? format(ev.time, "HH:mm") : "Cả ngày"} • Thuê: ${ev.booking.startTime || "--:--"
+                                } - ${ev.booking.endTime || "--:--"}`}
+                            >
+                              <div className="flex items-center gap-1 truncate">
+                                <Camera className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate">{ev.booking.cameraName}</span>
                               </div>
-                            ))}
-                          </div>
+                              <div className="text-xs opacity-90 mt-0.5 truncate">
+                                {ev.title.split(":")[0]} • {ev.time ? format(ev.time, "HH:mm") : "Cả ngày"}
+                              </div>
+                            </div>
+                          ))
                         )}
                       </div>
                     );
                   })}
-
-                  {/* RESERVED */}
-                  {getEventsForDay(activeDay).some(e => e.type === "reserved") && (
-                    <div className="absolute top-3 right-3 z-20">
-                      <div className="bg-yellow-600 text-white px-3 py-1.5 rounded-md text-xs font-semibold shadow-lg">
-                        ĐANG THUÊ TRONG NGÀY
-                      </div>
-                      {getEventsForDay(activeDay)
-                        .filter(e => e.type === "reserved")
-                        .map((ev) => (
-                          <div
-                            key={ev.id}
-                            onClick={() => setSelectedBooking(ev.booking)}
-                            className="mt-2 bg-yellow-500 text-white px-3 py-2 rounded-md text-xs font-medium cursor-pointer shadow hover:bg-yellow-600 transition"
-                          >
-                            <div>{ev.booking.customerName}</div>
-                            <div className="text-xs opacity-90">
-                              {ev.booking.cameraName} • Thuê: {ev.booking.startTime || "--"} - {ev.booking.endTime || "--"}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
                 </div>
+
               </div>
             </div>
 
-            {/* DANH SÁCH SỰ KIỆN */}
-            <div className="mt-8">
+            {/* Danh sách sự kiện */}
+            <div className="mt-4 sm:mt-8">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                 <List className="h-5 w-5" />
                 Sự kiện trong ngày
@@ -528,23 +516,17 @@ export function CalendarView() {
               ) : (
                 <div className="space-y-3">
                   {getEventsForDay(activeDay).map((ev) => (
-                    <div key={ev.id} className="flex items-center justify-between p-4 border rounded-lg hover:border-primary/50 transition bg-card shadow-sm">
+                    <div key={ev.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:border-primary/50 transition bg-card shadow-sm gap-2 sm:gap-0">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
                           <div className={cn("w-3 h-3 rounded-full", ev.colorClass)} />
-                          <div className="font-semibold text-foreground">{ev.title}</div>
-                          <Badge variant="outline" className="ml-2">{ev.booking.cameraName}</Badge>
+                          <div className="font-semibold text-foreground truncate">{ev.title}</div>
+                          <Badge variant="outline" className="ml-2 truncate">{ev.booking.cameraName}</Badge>
                         </div>
-                        <div className="text-sm text-muted-foreground mt-1 ml-6">
+                        <div className="text-sm text-muted-foreground mt-1 ml-0 sm:ml-6 truncate">
                           {ev.time ? (
                             <span className="font-medium text-primary">{format(ev.time, "HH:mm")}</span>
                           ) : "Cả ngày"} • {ev.booking.customerName}
-                          {ev.booking.startTime && (
-                            <span className="ml-2">
-                              • Giờ thuê: <span className="font-medium">{ev.booking.startTime}</span> →{" "}
-                              <span className="font-medium">{ev.booking.endTime || "--:--"}</span>
-                            </span>
-                          )}
                         </div>
                       </div>
                       <Button size="sm" variant="default" onClick={() => setSelectedBooking(ev.booking)}>
@@ -561,7 +543,7 @@ export function CalendarView() {
 
       {/* DIALOG CHI TIẾT */}
       <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-full max-w-flex sm:max-w-lg max-h-[80vh] sm:max-h-[90vh] overflow-auto p-4">
           <DialogHeader>
             <DialogTitle>Chi tiết đơn thuê</DialogTitle>
             <DialogDescription>Thông tin đầy đủ về đơn đặt</DialogDescription>
@@ -570,12 +552,19 @@ export function CalendarView() {
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between">
                 <Badge className={cn("text-white", STATUS_COLORS[selectedBooking.status])}>
-                  {selectedBooking.status === "pending" ? "Chờ xác nhận" :
-                    selectedBooking.status === "confirmed" ? "Đã xác nhận" :
-                      selectedBooking.status === "active" ? "Đang thuê" :
-                        selectedBooking.status === "completed" ? "Hoàn thành" :
-                          selectedBooking.status === "overtime" ? "Quá hạn" :
-                            selectedBooking.status === "cancelled" ? "Đã hủy" : selectedBooking.status}
+                  {selectedBooking.status === "pending"
+                    ? "Chờ xác nhận"
+                    : selectedBooking.status === "confirmed"
+                      ? "Đã xác nhận"
+                      : selectedBooking.status === "active"
+                        ? "Đang thuê"
+                        : selectedBooking.status === "completed"
+                          ? "Hoàn thành"
+                          : selectedBooking.status === "overtime"
+                            ? "Quá hạn"
+                            : selectedBooking.status === "cancelled"
+                              ? "Đã hủy"
+                              : selectedBooking.status}
                 </Badge>
                 <span className="text-muted-foreground">#{selectedBooking.id.slice(0, 8)}</span>
               </div>
@@ -585,24 +574,38 @@ export function CalendarView() {
                   <User className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">{selectedBooking.customerName}</p>
-                    {selectedBooking.customerEmail && <p className="text-muted-foreground">{selectedBooking.customerEmail}</p>}
+                    {selectedBooking.customerEmail && (
+                      <p className="text-muted-foreground">{selectedBooking.customerEmail}</p>
+                    )}
                   </div>
                 </div>
+
                 {selectedBooking.customerPhone && (
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <span>{selectedBooking.customerPhone}</span>
                   </div>
                 )}
+
                 <div className="flex items-center gap-2">
                   <Camera className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{selectedBooking.cameraName}</span>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p>{format(normalizeToDate(selectedBooking.startDate), "dd/MM/yyyy")} → {format(normalizeToDate(selectedBooking.endDate), "dd/MM/yyyy")}</p>
-                    <p className="text-muted-foreground">{differenceInDays(normalizeToDate(selectedBooking.endDate), normalizeToDate(selectedBooking.startDate)) + 1} ngày</p>
+                    <p>
+                      {format(normalizeToDate(selectedBooking.startDate), "dd/MM/yyyy")} →{" "}
+                      {format(normalizeToDate(selectedBooking.endDate), "dd/MM/yyyy")}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {differenceInDays(
+                        normalizeToDate(selectedBooking.endDate),
+                        normalizeToDate(selectedBooking.startDate)
+                      ) + 1}{" "}
+                      ngày
+                    </p>
                     {(selectedBooking.startTime || selectedBooking.endTime) && (
                       <p className="text-muted-foreground">
                         Nhận: <b>{selectedBooking.startTime || "--:--"}</b> | Trả: <b>{selectedBooking.endTime || "--:--"}</b>
@@ -610,6 +613,7 @@ export function CalendarView() {
                     )}
                   </div>
                 </div>
+
                 <div className="border-t pt-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Đơn giá:</span>
@@ -620,35 +624,46 @@ export function CalendarView() {
                     <span className="text-primary">{(selectedBooking.totalAmount || 0).toLocaleString("vi-VN")}đ</span>
                   </div>
                 </div>
+
                 {selectedBooking.notes && (
                   <div className="border-t pt-2">
                     <p className="text-muted-foreground font-medium">Ghi chú:</p>
                     <p className="italic">{selectedBooking.notes}</p>
                   </div>
                 )}
+
                 {selectedBooking.__logs && selectedBooking.__logs.length > 0 && (
                   <div className="border-t pt-2">
                     <p className="font-medium mb-2">Lịch sử trạng thái:</p>
                     <div className="space-y-1 text-xs">
-                      {selectedBooking.__logs.map(log => {
+                      {selectedBooking.__logs.map((log) => {
                         const date = new Date(log.timestamp);
                         return (
                           <div key={log.id || log.timestamp} className="flex justify-between">
-                            <span className={cn(
-                              "font-medium",
-                              log.status === "pending" && "text-yellow-600",
-                              log.status === "confirmed" && "text- blue-600",
-                              log.status === "active" && "text-green-600",
-                              log.status === "completed" && "text-gray-600",
-                              log.status === "overtime" && "text-orange-600",
-                              log.status === "cancelled" && "text-red-600"
-                            )}>
-                              {log.status === "pending" ? "Chờ" :
-                                log.status === "confirmed" ? "Xác nhận" :
-                                  log.status === "active" ? "Đang thuê" :
-                                    log.status === "completed" ? "Hoàn thành" :
-                                      log.status === "overtime" ? "Quá hạn" :
-                                        log.status === "cancelled" ? "Hủy" : log.status}
+                            <span
+                              className={cn(
+                                "font-medium",
+                                log.status === "pending" && "text-yellow-600",
+                                log.status === "confirmed" && "text-blue-600",
+                                log.status === "active" && "text-green-600",
+                                log.status === "completed" && "text-gray-600",
+                                log.status === "overtime" && "text-orange-600",
+                                log.status === "cancelled" && "text-red-600"
+                              )}
+                            >
+                              {log.status === "pending"
+                                ? "Chờ"
+                                : log.status === "confirmed"
+                                  ? "Xác nhận"
+                                  : log.status === "active"
+                                    ? "Đang thuê"
+                                    : log.status === "completed"
+                                      ? "Hoàn thành"
+                                      : log.status === "overtime"
+                                        ? "Quá hạn"
+                                        : log.status === "cancelled"
+                                          ? "Hủy"
+                                          : log.status}
                             </span>
                             <span className="text-muted-foreground">
                               {isNaN(date.getTime()) ? "—" : format(date, "HH:mm dd/MM")}
@@ -664,6 +679,7 @@ export function CalendarView() {
           )}
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

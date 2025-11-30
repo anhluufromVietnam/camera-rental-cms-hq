@@ -347,17 +347,17 @@ export function OrderManagement() {
 
   // --- UI render (kept similar to your original) ---
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 px-4 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Quản lý đơn hàng</h2>
-          <p className="text-muted-foreground">Xác nhận và quản lý tình trạng đơn hàng</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Quản lý đơn hàng</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">Xác nhận và quản lý tình trạng đơn hàng</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap gap-2">
           <Button
             variant="outline"
             onClick={() => {
-              // manual refresh: re-read once
               setLoading(true)
               const bookingsRef = ref(db, "bookings")
               get(bookingsRef)
@@ -384,67 +384,39 @@ export function OrderManagement() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">Tổng đơn hàng</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-            <p className="text-xs text-muted-foreground">Chờ xác nhận</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-blue-600">{stats.confirmed}</div>
-            <p className="text-xs text-muted-foreground">Đã xác nhận</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-            <p className="text-xs text-muted-foreground">Đang thuê</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-gray-600">{stats.completed}</div>
-            <p className="text-xs text-muted-foreground">Hoàn thành</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-orange-600">{stats.overtime}</div>
-            <p className="text-xs text-muted-foreground">Quá hạn</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-red-600">{stats.cancelled}</div>
-            <p className="text-xs text-muted-foreground">Đã hủy</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        {[
+          { value: stats.total, label: "Tổng đơn hàng" },
+          { value: stats.pending, label: "Chờ xác nhận", color: "text-yellow-600" },
+          { value: stats.confirmed, label: "Đã xác nhận", color: "text-blue-600" },
+          { value: stats.active, label: "Đang thuê", color: "text-green-600" },
+          { value: stats.completed, label: "Hoàn thành", color: "text-gray-600" },
+          { value: stats.overtime, label: "Quá hạn", color: "text-orange-600" },
+          { value: stats.cancelled, label: "Đã hủy", color: "text-red-600" },
+        ].map((stat, idx) => (
+          <Card key={idx}>
+            <CardContent className="pt-4">
+              <div className={`text-2xl font-bold ${stat.color || ""}`}>{stat.value}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Tìm kiếm theo tên khách hàng, email, máy ảnh hoặc mã đơn..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="flex-1 w-full sm:max-w-md relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Tìm kiếm theo tên khách hàng, email, máy ảnh hoặc mã đơn..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 w-full"
+          />
         </div>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="Lọc theo trạng thái" />
           </SelectTrigger>
           <SelectContent className="bg-white dark:bg-gray-900">
@@ -456,276 +428,94 @@ export function OrderManagement() {
             <SelectItem value="cancelled">Đã hủy</SelectItem>
           </SelectContent>
         </Select>
+
       </div>
 
       {/* Orders List */}
-      <Card>
+      <Card className="overflow-x-auto">
         <CardHeader>
           <CardTitle>Danh sách đơn hàng</CardTitle>
           <CardDescription>
             Hiển thị {filteredBookings.length} trong tổng số {bookings.length} đơn hàng
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {filteredBookings.map((booking) => (
-              <div
-                key={booking.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <h4 className="font-semibold">{booking.customerName}</h4>
-                        <p className="text-sm text-muted-foreground">#{booking.id}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Camera className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{booking.cameraName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(booking.startDate).toLocaleDateString("vi-VN")} -{" "}
-                          {new Date(booking.endDate).toLocaleDateString("vi-VN")}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="font-semibold">{booking.totalAmount.toLocaleString("vi-VN")}đ</p>
-                      <p className="text-sm text-muted-foreground">{booking.totalDays} ngày</p>
-                    </div>
-                  </div>
-
-                  {booking.notes && <p className="text-sm text-muted-foreground italic">Ghi chú: {booking.notes}</p>}
-
-                  {booking.adminNotes && <p className="text-sm text-blue-600 italic">Admin: {booking.adminNotes}</p>}
-                </div>
-
-                <div className="flex items-center gap-2 ml-4">
-                  {getStatusBadge(booking.status)}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedBooking(booking)
-                      setIsDetailsOpen(true)
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                                                {canUpdateStatus(booking) && (
-                                                  <Button
-                                                    size="sm"
-                                                    onClick={() => handleQuickStatusUpdate(booking, STATUS_CONFIG[booking.status].nextStatus!)}
-                                                    className="text-xs"
-                                                  >
-                                                    {getNextStatusLabel(booking)}
-                                                  </Button>
-                                                )}
-
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() => {
-                                                    setSelectedBooking(booking)
-                                                    setNewStatus(booking.status)
-                                                    setAdminNotes(booking.adminNotes || "")
-                                                    setIsStatusUpdateOpen(true)
-                                                  }}
-                                                >
-                                                  <Edit className="h-4 w-4" />
-                                                </Button>
-
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() => deleteBooking(booking.id)}
-                                                  className="text-destructive hover:text-destructive"
-                                                >
-                                                  <Trash2 className="h-4 w-4" />
-                                                </Button>
-
-                </div>
-              </div>
-            ))}
-
-            {!loading && filteredBookings.length === 0 && (
-              <div className="text-center py-8">
-                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Không tìm thấy đơn hàng</h3>
-                <p className="text-muted-foreground">
-                  {searchTerm || statusFilter !== "all" ? "Không có đơn hàng phù hợp" : "Chưa có đơn hàng trong hệ thống"}
-                </p>
-              </div>
-            )}
-
-            {loading && (
-              <div className="text-center py-8 text-muted-foreground">Đang tải danh sách đơn hàng...</div>
-            )}
+ <CardContent className="space-y-4">
+  {filteredBookings.map((booking) => (
+    <div
+      key={booking.id}
+      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-muted/50 transition-colors gap-4 sm:gap-2"
+    >
+      {/* Info chính */}
+      <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+        <div className="flex items-center gap-2 sm:flex-1 min-w-0">
+          <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="truncate">
+            <h4 className="font-semibold truncate">{booking.customerName}</h4>
+            <p className="text-sm text-muted-foreground truncate">#{booking.id}</p>
           </div>
-        </CardContent>
+        </div>
+
+        <div className="flex items-center gap-2 sm:flex-1 min-w-0">
+          <Camera className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="truncate">
+            <p className="font-medium truncate">{booking.cameraName}</p>
+            <p className="text-sm text-muted-foreground truncate">
+              {new Date(booking.startDate).toLocaleDateString("vi-VN")} -{" "}
+              {new Date(booking.endDate).toLocaleDateString("vi-VN")}
+            </p>
+          </div>
+        </div>
+
+        <div className="text-right sm:text-right sm:flex-shrink-0">
+          <p className="font-semibold">{booking.totalAmount.toLocaleString("vi-VN")}đ</p>
+          <p className="text-sm text-muted-foreground">{booking.totalDays} ngày</p>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 mt-2 sm:mt-0">
+        {getStatusBadge(booking.status)}
+
+        <Button variant="outline" size="sm" onClick={() => { setSelectedBooking(booking); setIsDetailsOpen(true); }}>
+          <Eye className="h-4 w-4" />
+        </Button>
+
+        {canUpdateStatus(booking) && (
+          <Button size="sm" onClick={() => handleQuickStatusUpdate(booking, STATUS_CONFIG[booking.status].nextStatus!)} className="text-xs">
+            {getNextStatusLabel(booking)}
+          </Button>
+        )}
+
+        <Button variant="outline" size="sm" onClick={() => { setSelectedBooking(booking); setNewStatus(booking.status); setAdminNotes(booking.adminNotes || ""); setIsStatusUpdateOpen(true); }}>
+          <Edit className="h-4 w-4" />
+        </Button>
+
+        <Button variant="outline" size="sm" onClick={() => deleteBooking(booking.id)} className="text-destructive hover:text-destructive">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Notes */}
+      {booking.notes && <p className="text-sm text-muted-foreground italic mt-2 sm:mt-0">{booking.notes}</p>}
+      {booking.adminNotes && <p className="text-sm text-blue-600 italic mt-2 sm:mt-0">{booking.adminNotes}</p>}
+    </div>
+  ))}
+
+  {!loading && filteredBookings.length === 0 && (
+    <div className="text-center py-8">
+      <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <h3 className="text-lg font-semibold mb-2">Không tìm thấy đơn hàng</h3>
+      <p className="text-muted-foreground">
+        {searchTerm || statusFilter !== "all" ? "Không có đơn hàng phù hợp" : "Chưa có đơn hàng trong hệ thống"}
+      </p>
+    </div>
+  )}
+
+  {loading && <div className="text-center py-8 text-muted-foreground">Đang tải danh sách đơn hàng...</div>}
+</CardContent>
+
       </Card>
-
-      {/* Order Details Dialog */}
-      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Chi tiết đơn hàng
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Mã vận đơn: {selectedBooking?.id}
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedBooking && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                {getStatusBadge(selectedBooking.status)}
-                <span className="text-sm text-muted-foreground">
-                  Tạo lúc: {new Date(selectedBooking.createdAt).toLocaleString("vi-VN")}
-                </span>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold mb-2">Thông tin khách hàng</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span>{selectedBooking.customerName}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span>{selectedBooking.customerEmail}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span>{selectedBooking.customerPhone}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold mb-2">Thông tin thuê</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Camera className="h-4 w-4 text-muted-foreground" />
-                        <span>{selectedBooking.cameraName}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>
-                          {new Date(selectedBooking.startDate).toLocaleDateString("vi-VN")} -{" "}
-                          {new Date(selectedBooking.endDate).toLocaleDateString("vi-VN")}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground italic">
-                          Giờ nhận:{" "}
-                          <span className="font-medium text-foreground">
-                            {selectedBooking.startTime || "--:--"}
-                          </span>{" "}
-                          Giờ trả:{" "}
-                          <span className="font-medium text-foreground">
-                            {selectedBooking.endTime || "--:--"}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span>{selectedBooking.totalDays} ngày</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {selectedBooking.notes && (
-                <div>
-                  <h4 className="font-semibold mb-2">Ghi chú của khách hàng</h4>
-                  <p className="text-sm text-muted-foreground italic bg-muted/50 p-3 rounded">
-                    {selectedBooking.notes}
-                  </p>
-                </div>
-              )}
-
-              {selectedBooking.adminNotes && (
-                <div>
-                  <h4 className="font-semibold mb-2">Ghi chú của admin</h4>
-                  <p className="text-sm text-blue-600 italic bg-blue-50 p-3 rounded">{selectedBooking.adminNotes}</p>
-                </div>
-              )}
-
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center text-lg font-bold">
-                  <span>Tổng tiền:</span>
-                  <span className="text-primary">{selectedBooking.totalAmount.toLocaleString("vi-VN")}đ</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Status Update Dialog */}
-      <Dialog open={isStatusUpdateOpen} onOpenChange={setIsStatusUpdateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cập nhật trạng thái đơn hàng</DialogTitle>
-            <DialogDescription>
-              Thay đổi trạng thái và thêm ghi chú cho đơn hàng #{selectedBooking?.id}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Trạng thái mới</Label>
-              <Select value={newStatus} onValueChange={setNewStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-gray-900">
-                  <SelectItem value="pending">Chờ xác nhận</SelectItem>
-                  <SelectItem value="confirmed">Đã xác nhận</SelectItem>
-                  <SelectItem value="active">Đang thuê</SelectItem>
-                  <SelectItem value="completed">Hoàn thành</SelectItem>
-                  <SelectItem value="overtime">Quá hạn</SelectItem>
-                  <SelectItem value="cancelled">Đã hủy</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Ghi chú admin (tùy chọn)</Label>
-              <Textarea
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="Thêm ghi chú về việc cập nhật trạng thái..."
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsStatusUpdateOpen(false)}>
-              Hủy
-            </Button>
-            <Button onClick={handleStatusUpdate} disabled={!newStatus}>
-              Cập nhật
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
+
 }

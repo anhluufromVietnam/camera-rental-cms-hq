@@ -747,6 +747,7 @@ export function PublicBooking() {
                       onClick={(e) => {
                         e.stopPropagation()
                         handleCameraSelect(camera)
+                        document.getElementById("booking-section")?.scrollIntoView({ behavior: "smooth" })
                       }}
                     >
                       Chọn máy này
@@ -978,7 +979,12 @@ export function PublicBooking() {
               <Button
                 className="flex-1"
                 disabled={!isDayValid()}
-                onClick={handleDateSelect}
+                onClick={() => {
+                  handleDateSelect();
+                  document
+                    .getElementById("booking-section")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
               >
                 Tiếp tục
               </Button>
@@ -1082,10 +1088,13 @@ export function PublicBooking() {
               >
                 Quay lại
               </Button>
-
               <Button
-                onClick={handleDetailsSubmit}
-                disabled={!isFormValid()}
+                onClick={() => {
+                  handleDetailsSubmit();
+                  document
+                    .getElementById("booking-section")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }} disabled={!isFormValid()}
                 className="w-full sm:w-auto sm:flex-1"
               >
                 Xem lại đơn hàng
