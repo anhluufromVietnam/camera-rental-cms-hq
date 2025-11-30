@@ -10,6 +10,7 @@ import { OrderManagement } from "@/components/order-management"
 import { SettingsImage } from "@/components/settings-image"
 import { GalleryManagement } from "@/components/gallery-management"
 import { Camera, Calendar, Package, Settings, LogOut, ImageIcon } from "lucide-react"
+import { useGlobalErrorLogger } from "@/hooks/useGlobalErrorLogger";
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -18,6 +19,7 @@ export default function AdminDashboard() {
   const [isScrollingDown, setIsScrollingDown] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
 
+  useGlobalErrorLogger();
   useEffect(() => {
     const authStatus = localStorage.getItem("adminAuth")
     if (authStatus === "true") {

@@ -4,8 +4,10 @@ import { PublicBooking } from "@/components/public-booking"
 import { Camera, Heart, Shield, Clock, Star, Sparkles, Phone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FacebookGallery } from "@/components/facebook-gallery"
+import { useGlobalErrorLogger } from "@/hooks/useGlobalErrorLogger";
 
 export default function BookingPage() {
+  useGlobalErrorLogger();
   const [showHeader, setShowHeader] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
 
