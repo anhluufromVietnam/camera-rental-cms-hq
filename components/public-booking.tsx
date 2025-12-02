@@ -48,6 +48,7 @@ interface BookingForm {
   customerEmail: string
   customerPhone: string
   notes: string
+  depositMethod: string
 }
 
 interface PaymentInfo {
@@ -75,8 +76,12 @@ export function PublicBooking() {
     customerEmail: "",
     customerPhone: "",
     notes: "",
+    depositMethod: ""
   })
-  const [step, setStep] = useState<"select" | "dates" | "details" | "confirm">("select")
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isEndPopoverOpen, setIsEndPopoverOpen] = useState(false);
+  const [step, setStep] = useState<"dates" | "select" | "details" | "confirm">("dates")
+  const [availableCameras, setAvailableCameras] = useState<CameraType[]>([])
   const [showSuccess, setShowSuccess] = useState(false)
   const [stepError, setStepError] = useState("")
   const [phoneError, setPhoneError] = useState<string>("")
@@ -85,6 +90,7 @@ export function PublicBooking() {
   const [bookedDates, setBookedDates] = useState<Date[]>([])
   const [showGallery, setShowGallery] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
+  const invalidBookingStatuses = ["pending", "confirmed", "active"];
 
   const { toast } = useToast()
 
@@ -117,50 +123,15 @@ export function PublicBooking() {
     return () => unsubscribe()
   }, [])
 
-  // Fetch booked dates for the selected camera
-  useEffect(() => {
-    if (!selectedCamera?.id) return
-
-    const fetchBookedDates = async () => {
-      try {
-        const snap = await get(ref(db, "bookings"))
-        if (!snap.exists()) return
-
-        const allBookings = Object.values(snap.val())
-
-        const dates: Date[] = []
-
-        allBookings.forEach((b: any) => {
-          if (!b || b.cameraId !== selectedCamera.id) return
-          if (!["pending", "confirmed"].includes(b.status)) return
-
-          const start = new Date(b.startDate)
-          const end = new Date(b.endDate)
-
-          // Lấy tất cả các ngày trong khoảng start → end
-          const current = new Date(start)
-          while (current <= end) {
-            dates.push(new Date(current))
-            current.setDate(current.getDate() + 1)
-          }
-        })
-
-        setBookedDates(dates)
-      } catch (err) {
-        console.error("Lỗi khi tải ngày đã đặt:", err)
-      }
-    }
-
-    fetchBookedDates()
-  }, [selectedCamera])
-
   const handleCameraSelect = (camera: CameraType) => {
     setSelectedCamera(camera)
     setBookingForm((prev) => ({ ...prev, cameraId: camera.id }))
-    setStep("dates")
+    setStep("details")
   }
 
   const timeOptions = [
+    { label: "7:00 sáng", value: 7 },
+    { label: "8:00 sáng", value: 8 },
     { label: "9:00 sáng", value: 9 },
     { label: "10:00 sáng", value: 10 },
     { label: "11:00 trưa", value: 11 },
@@ -192,79 +163,42 @@ export function PublicBooking() {
 
   const handleDateSelect = async () => {
     if (!bookingForm.startDate || !bookingForm.endDate) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn ngày bắt đầu và ngày kết thúc.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!bookingForm.startTime || !bookingForm.endTime) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn giờ nhận và giờ trả.",
-        variant: "destructive",
-      })
+      toast({ title: "Lỗi", description: "Vui lòng chọn ngày", variant: "destructive" })
       return
     }
 
     try {
-      const bookingsSnap = await get(ref(db, "bookings"))
-      if (bookingsSnap.exists()) {
-        const allBookings = Object.values(bookingsSnap.val())
-        const selectedCameraId = selectedCamera?.id
+      const snap = await get(ref(db, "bookings"))
+      const allBookings = snap.exists() ? Object.values(snap.val()) : []
 
-        if (!selectedCameraId) {
-          toast({
-            title: "Lỗi",
-            description: "Không xác định được máy ảnh.",
-            variant: "destructive",
-          })
-          return
-        }
+      const start = new Date(bookingForm.startDate)
+      const end = new Date(bookingForm.endDate)
 
-        const selectedStart = new Date(bookingForm.startDate)
-        const selectedEnd = new Date(bookingForm.endDate)
+      start.setHours(0, 0, 0, 0)
+      end.setHours(23, 59, 59, 999)
 
-        selectedStart.setHours(0, 0, 0, 0)
-        selectedEnd.setHours(23, 59, 59, 999)
-
+      const result = cameras.filter(cam => {
         const isOverlap = allBookings.some((b: any) => {
-          if (!b || b.cameraId !== selectedCameraId) return false
-          if (!b.startDate || !b.endDate) return false
+          if (b.cameraId !== cam.id) return false
           if (!["pending", "confirmed"].includes(b.status)) return false
 
-          const start = new Date(b.startDate)
-          const end = new Date(b.endDate)
+          const bStart = new Date(b.startDate)
+          const bEnd = new Date(b.endDate)
+          bStart.setHours(0, 0, 0, 0)
+          bEnd.setHours(23, 59, 59, 999)
 
-          start.setHours(0, 0, 0, 0)
-          end.setHours(23, 59, 59, 999)
-
-          return selectedStart <= end && selectedEnd >= start
+          return start <= bEnd && end >= bStart
         })
 
-        if (isOverlap) {
-          toast({
-            title: "Trùng lịch thuê",
-            description:
-              "Máy ảnh này chưa được trả trong ngày bạn chọn. Vui lòng chọn thời gian khác (sau ngày trả).",
-            variant: "destructive",
-          })
-          return
-        }
-      }
-    } catch (error) {
-      console.error("Lỗi khi kiểm tra trùng lịch:", error)
-      toast({
-        title: "Lỗi kiểm tra lịch",
-        description: "Không thể kiểm tra lịch đặt máy. Vui lòng thử lại sau.",
-        variant: "destructive",
+        return !isOverlap
       })
-      return
-    }
 
-    setStep("details")
+      setAvailableCameras(result)
+      setStep("select") 
+    } catch (err) {
+      console.error(err)
+      toast({ title: "Lỗi", description: "Không thể kiểm tra lịch", variant: "destructive" })
+    }
   }
 
   const handleDetailsSubmit = () => {
@@ -346,6 +280,7 @@ export function PublicBooking() {
       customerEmail: "",
       customerPhone: "",
       notes: "",
+      depositMethod: ""
     })
     setStep("select")
     setPhoneError("")
@@ -389,16 +324,16 @@ export function PublicBooking() {
   }, [])
 
   const stepsConfig = [
-    { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
     { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
+    { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
     { key: "details", label: "Thông tin khách", icon: User },
     { key: "confirm", label: "Xác nhận", icon: Check },
   ] as const
 
   const validateStep = (key: (typeof stepsConfig)[number]["key"]) => {
-    if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
     if (key === "dates" && !isDayValid())
       return "Vui lòng chọn ngày thuê và ngày trả"
+    if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
     if (key === "details" && !isFormValid())
       return "Vui lòng điền đầy đủ thông tin"
     return ""
@@ -557,7 +492,211 @@ export function PublicBooking() {
         </CardContent>
       </Card>
 
-      {/* Step 1: Camera Selection */}
+      {/* Step 1: Date Selection */}
+      {step === "dates" && (
+        <Card className="max-w-3xl mx-auto shadow-lg">
+          <CardHeader className="text-center">
+            <CardDescription className="text-base font-bold">
+              Chọn ngày bắt đầu và ngày kết thúc thuê máy
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-8">
+
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-primary rounded-sm" />
+                <span>Ngày đã chọn</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-red-400 rounded-sm" />
+                <span>Đã được đặt</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-sm" />
+                <span>Không khả dụng</span>
+              </div>
+            </div>
+
+            {/* Date Selectors */}
+            <div className="grid md:grid-cols-2 gap-8">
+
+              {/* Start Date */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Ngày bắt đầu</Label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Calendar */}
+                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left text-sm sm:text-base truncate"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                        {bookingForm.startDate
+                          ? new Date(bookingForm.startDate).toLocaleDateString("vi-VN")
+                          : "Ngày nhận"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900">
+                      <Calendar
+                        mode="single"
+                        selected={bookingForm.startDate || undefined}
+                        onSelect={(date) => {
+                          setBookingForm((prev) => ({
+                            ...prev,
+                            startDate: date || null,
+                            endDate: null,
+                          }));
+                          setIsPopoverOpen(false);
+                        }}
+                        disabled={(date) => {
+                          const isBooked = bookedDates.some(
+                            (d) => d.toDateString() === date.toDateString()
+                          );
+                          const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+                          return isBooked || isPast;
+                        }}
+                        modifiers={{ booked: bookedDates }}
+                        modifiersStyles={{
+                          booked: {
+                            backgroundColor: "#f87171",
+                            color: "#fff",
+                            borderRadius: "50%",
+                          },
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {/* Time */}
+                  <Select
+                    value={bookingForm.startTime || ""}
+                    onValueChange={(value) =>
+                      setBookingForm((prev) => ({
+                        ...prev,
+                        startTime: value,
+                        endTime: "",
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Giờ nhận" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border border-gray-300 shadow-md">
+                      {timeOptions.map((t) => (
+                        <SelectItem key={t.value} value={`${t.value}:00`}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* End Date */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Ngày kết thúc</Label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Popover open={isEndPopoverOpen} onOpenChange={setIsEndPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left text-sm sm:text-base truncate"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                        {bookingForm.endDate
+                          ? new Date(bookingForm.endDate).toLocaleDateString("vi-VN")
+                          : "Ngày trả"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900">
+                      <Calendar
+                        mode="single"
+                        selected={bookingForm.endDate || undefined}
+                        onSelect={(date) => {
+                          setBookingForm((prev) => ({
+                            ...prev,
+                            endDate: date || null,
+                            endTime: "",
+                          }));
+                          setIsEndPopoverOpen(false); // <-- Đóng Popover ngay khi chọn ngày
+                        }}
+                        disabled={(date) => {
+                          const isBeforeStart =
+                            bookingForm.startDate && date < bookingForm.startDate;
+                          const isBooked = bookedDates.some(
+                            (d) => d.toDateString() === date.toDateString()
+                          );
+                          return isBeforeStart || isBooked;
+                        }}
+                        modifiers={{ booked: bookedDates }}
+                        modifiersStyles={{
+                          booked: {
+                            backgroundColor: "#f87171",
+                            color: "#fff",
+                            borderRadius: "50%",
+                          },
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <Select
+                    value={bookingForm.endTime || ""}
+                    onValueChange={(value) =>
+                      setBookingForm((prev) => ({ ...prev, endTime: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Giờ trả" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border border-gray-300 shadow-md">
+                      {timeOptions.map((t) => (
+                        <SelectItem
+                          key={t.value}
+                          value={`${t.value}:00`}
+                          disabled={isEndTimeDisabled(t.value)}
+                        >
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="sm:w-auto w-full"
+                onClick={() => setStep("select")}
+              >
+                Quay lại
+              </Button>
+
+              <Button
+                className="flex-1"
+                disabled={!isDayValid()}
+                onClick={() => {
+                  handleDateSelect();
+                  document
+                    .getElementById("booking-section")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                Tiếp tục
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 2: Camera Selection */}
       {step === "select" && (
         <>
           {/* Gallery Overlay */}
@@ -760,239 +899,6 @@ export function PublicBooking() {
         </>
       )}
 
-      {/* Step 2: Date Selection */}
-      {step === "dates" && selectedCamera && (
-        <Card className="max-w-3xl mx-auto shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-xl font-semibold">
-              <CameraIcon className="h-5 w-5" />
-              {selectedCamera.name}
-            </CardTitle>
-            <CardDescription className="text-base">
-              Chọn ngày bắt đầu và ngày kết thúc thuê máy
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-8">
-
-            {/* Legend */}
-            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-primary rounded-sm" />
-                <span>Ngày đã chọn</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-400 rounded-sm" />
-                <span>Đã được đặt</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-sm" />
-                <span>Không khả dụng</span>
-              </div>
-            </div>
-
-            {/* Date Selectors */}
-            <div className="grid md:grid-cols-2 gap-8">
-
-              {/* Start Date */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Ngày bắt đầu</Label>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Calendar */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left text-sm sm:text-base truncate">
-                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                        {bookingForm.startDate
-                          ? new Date(bookingForm.startDate).toLocaleDateString("vi-VN")
-                          : "Ngày nhận"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900">
-                      <Calendar
-                        mode="single"
-                        selected={bookingForm.startDate || undefined}
-                        onSelect={(date) =>
-                          setBookingForm((prev) => ({
-                            ...prev,
-                            startDate: date || null,
-                            endDate: null,
-                          }))
-                        }
-                        disabled={(date) => {
-                          const isBooked = bookedDates.some(
-                            (d) => d.toDateString() === date.toDateString()
-                          )
-                          const isPast = date < new Date(new Date().setHours(0, 0, 0, 0))
-                          return isBooked || isPast
-                        }}
-                        modifiers={{ booked: bookedDates }}
-                        modifiersStyles={{
-                          booked: {
-                            backgroundColor: "#f87171",
-                            color: "#fff",
-                            borderRadius: "50%",
-                          },
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* Time */}
-                  <Select
-                    value={bookingForm.startTime || ""}
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({
-                        ...prev,
-                        startTime: value,
-                        endTime: "",
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Giờ nhận" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border border-gray-300 shadow-md">
-                      {timeOptions.map((t) => (
-                        <SelectItem key={t.value} value={`${t.value}:00`}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* End Date */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Ngày kết thúc</Label>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left text-sm sm:text-base truncate">
-                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                        {bookingForm.endDate
-                          ? new Date(bookingForm.endDate).toLocaleDateString("vi-VN")
-                          : "Ngày trả"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900">
-                      <Calendar
-                        mode="single"
-                        selected={bookingForm.endDate || undefined}
-                        onSelect={(date) =>
-                          setBookingForm((prev) => ({
-                            ...prev,
-                            endDate: date || null,
-                            endTime: "",
-                          }))
-                        }
-                        disabled={(date) => {
-                          const isBeforeStart =
-                            bookingForm.startDate && date < bookingForm.startDate
-                          const isBooked = bookedDates.some(
-                            (d) => d.toDateString() === date.toDateString()
-                          )
-                          return isBeforeStart || isBooked
-                        }}
-                        modifiers={{ booked: bookedDates }}
-                        modifiersStyles={{
-                          booked: {
-                            backgroundColor: "#f87171",
-                            color: "#fff",
-                            borderRadius: "50%",
-                          },
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  <Select
-                    value={bookingForm.endTime || ""}
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, endTime: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Giờ trả" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border border-gray-300 shadow-md">
-                      {timeOptions.map((t) => (
-                        <SelectItem
-                          key={t.value}
-                          value={`${t.value}:00`}
-                          disabled={isEndTimeDisabled(t.value)}
-                        >
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Summary */}
-            {bookingForm.startDate &&
-              bookingForm.endDate &&
-              bookingForm.startTime &&
-              bookingForm.endTime && (
-                <Card className="bg-muted/40">
-                  <CardContent className="pt-4 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium">Số ngày thuê</span>
-                      <span className="font-semibold">{calculateTotalDays()} ngày</span>
-                    </div>
-
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium">Mức giá áp dụng</span>
-                      <span className="font-semibold text-right">
-                        {getPricingInfo().label} (
-                        {getPricingInfo().rate.toLocaleString("vi-VN")}đ/ngày)
-                      </span>
-                    </div>
-
-                    <Separator />
-
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Tổng cộng</span>
-                      <span className="text-primary">
-                        {getPricingInfo().total.toLocaleString("vi-VN")}đ
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                className="sm:w-auto w-full"
-                onClick={() => setStep("select")}
-              >
-                Quay lại
-              </Button>
-
-              <Button
-                className="flex-1"
-                disabled={!isDayValid()}
-                onClick={() => {
-                  handleDateSelect();
-                  document
-                    .getElementById("booking-section")
-                    ?.scrollIntoView({ behavior: "smooth" });
-                }}
-              >
-                Tiếp tục
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Step 3: Customer Details */}
       {step === "details" && (
         <Card className="max-w-3xl mx-auto">
@@ -1078,6 +984,35 @@ export function PublicBooking() {
                 />
               </div>
             </div>
+
+            {/* Deposit method */}
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-sm font-semibold">Phương thức cọc máy</Label>
+
+              <Select
+                value={bookingForm.depositMethod}
+                onValueChange={(value) =>
+                  setBookingForm((prev) => ({ ...prev, depositMethod: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn phương thức cọc" />
+                </SelectTrigger>
+
+                <SelectContent className="bg-white dark:bg-gray-900">
+                  <SelectItem value="cccd-taisan">
+                    Cọc CCCD + tài sản tương đương (Laptop, Macbook, xe máy,...)
+                  </SelectItem>
+                  <SelectItem value="cccd-80">
+                    Cọc CCCD + 80% giá trị máy
+                  </SelectItem>
+                  <SelectItem value="100">
+                    Cọc 100% giá trị máy
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row justify-between gap-3 pt-2">
@@ -1191,6 +1126,22 @@ export function PublicBooking() {
                     <p className="text-muted-foreground">{bookingForm.notes}</p>
                   </div>
                 )}
+
+                {/*DepositMethod*/}
+                {bookingForm.depositMethod && (
+                  <div className="p-2 bg-muted/50 font-bold rounded-lg text-sm leading-tight">
+                    <p className="font-medium mb-1">Phương thức cọc máy:</p>
+                    <p className="text-muted-foreground">
+                      {bookingForm.depositMethod === "cccd-taisan" &&
+                        "Cọc CCCD + tài sản tương đương (Laptop, Macbook, xe máy,...)"}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {bookingForm.depositMethod === "cccd-80" && "Cọc CCCD + 80% giá trị máy"}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {bookingForm.depositMethod === "100" && "Cọc 100% giá trị máy"}
+                    </p>
+                  </div>)}
 
                 {/* Total */}
                 <Card className="bg-primary/5 border-primary/20">

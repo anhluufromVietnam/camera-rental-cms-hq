@@ -104,7 +104,7 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8">
         <div className="glass-card rounded-3xl p-6">
           <Tabs defaultValue="cameras" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6 glass p-2 h-auto gap-2">
+            <TabsList className="grid w-full grid-cols-5 glass p-2 h-auto gap-2">
               <TabsTrigger
                 value="cameras"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
