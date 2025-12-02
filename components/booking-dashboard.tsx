@@ -192,24 +192,19 @@ export function BookingDashboard() {
     if (diffHours >= 120) return "5 ngày trở lên"
   }
 
-  const calculateTotalDays = (booking: Booking) => {
-    const diffDate = Math.ceil(
-      (normalizeDate(booking.endDate).getTime() - normalizeDate(booking.startDate).getTime()) /
-      (1000 * 60 * 60 * 24)
-    ) + 1;
-    return diffDate;
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-3 sm:px-4 md:px-6 lg:px-8 max-w-screen-xl mx-auto">
+
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold text-foreground">Dashboard đơn hàng</h2>
-        <p className="text-muted-foreground">Tổng quan về các đơn đặt thuê máy ảnh</p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard đơn hàng</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Tổng quan về các đơn đặt thuê máy ảnh
+        </p>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tổng đơn hàng</CardTitle>
@@ -256,16 +251,19 @@ export function BookingDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.monthlyRevenue.toLocaleString("vi-VN")}đ</div>
+            <div className="text-2xl font-bold">
+              {stats.monthlyRevenue.toLocaleString("vi-VN")}đ
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
+
         <div className="flex-1">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Tìm kiếm theo khách hàng, email, sđt, máy ảnh..."
               value={searchTerm}
@@ -275,9 +273,9 @@ export function BookingDashboard() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Lọc theo trạng thái" />
             </SelectTrigger>
             <SelectContent className="bg-white dark:bg-gray-900">
@@ -291,7 +289,7 @@ export function BookingDashboard() {
           </Select>
 
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-full sm:w-[150px]">
               <SelectValue placeholder="Lọc theo ngày" />
             </SelectTrigger>
             <SelectContent className="bg-white dark:bg-gray-900">
@@ -302,12 +300,15 @@ export function BookingDashboard() {
             </SelectContent>
           </Select>
         </div>
+
       </div>
 
       {/* Booking List */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-[Be_Vietnam_Pro] font-semibold">Danh sách đơn hàng</CardTitle>
+          <CardTitle className="text-base font-[Be_Vietnam_Pro] font-semibold">
+            Danh sách đơn hàng
+          </CardTitle>
           <CardDescription className="text-sm font-[Be_Vietnam_Pro]">
             Hiển thị {filteredBookings.length} trong tổng số {bookings.length} đơn hàng
           </CardDescription>
@@ -315,8 +316,13 @@ export function BookingDashboard() {
 
         <CardContent>
           <div className="space-y-4">
+
             {filteredBookings.map((booking) => (
-              <div key={booking.id} className="p-4 border rounded-lg space-y-2 font-[Be_Vietnam_Pro] text-sm">
+              <div
+                key={booking.id}
+                className="p-4 border rounded-lg space-y-2 font-[Be_Vietnam_Pro] text-sm 
+              bg-white/50 dark:bg-gray-900/40 shadow-sm hover:shadow-md transition-shadow"
+              >
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-semibold text-base">{booking.customerName}</h4>
@@ -328,20 +334,23 @@ export function BookingDashboard() {
                   {getStatusBadge(booking.status)}
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                <div className="grid md:grid-cols-2 gap-4 gap-y-3 text-sm leading-relaxed">
                   <div>
                     <p>
                       <span className="font-medium">Máy ảnh:</span> {booking.cameraName}
                     </p>
+
                     <p className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
                       {new Date(booking.startDate).toLocaleDateString("vi-VN")} →{" "}
                       {new Date(booking.endDate).toLocaleDateString("vi-VN")}
                     </p>
+
                     <p className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
                       Giờ nhận: {booking.startTime} - Giờ trả: {booking.endTime}
                     </p>
+
                     <p>
                       <span className="font-medium">Số ngày:</span> {booking.totalDays || 0} ngày
                     </p>
@@ -352,10 +361,12 @@ export function BookingDashboard() {
                       <span className="font-medium">Giá thuê/ngày:</span>{" "}
                       {booking.dailyRate?.toLocaleString("vi-VN") || 0}đ
                     </p>
+
                     <p>
                       <span className="font-medium">Tổng tiền:</span>{" "}
                       {booking.totalAmount?.toLocaleString("vi-VN") || 0}đ
                     </p>
+
                     <p>
                       <span className="font-medium">Ngày tạo:</span>{" "}
                       {new Date(booking.createdAt).toLocaleDateString("vi-VN")}
@@ -375,10 +386,11 @@ export function BookingDashboard() {
                 <h3 className="text-base font-semibold mb-2">Không tìm thấy đơn hàng</h3>
               </div>
             )}
+
           </div>
         </CardContent>
       </Card>
 
     </div>
-  )
+  );
 }

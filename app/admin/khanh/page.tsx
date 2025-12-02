@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { auth } from "@/firebase.config";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { useGlobalErrorLogger } from "@/hooks/useGlobalErrorLogger";
 
 export default function AdminLoginPage() {
+  useGlobalErrorLogger();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
