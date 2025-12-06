@@ -94,14 +94,12 @@ export function BookingDashboard() {
       .reduce((sum, b) => sum + b.totalAmount, 0),
     monthlyRevenue: bookings
       .filter((b) => {
-        const bookingDate = new Date(b.createdAt)
+        const bookingEndDate = new Date(b.endDate)  // Sửa: dùng endDate cho revenue tháng
         const now = new Date()
-        const currentMonth = now.getMonth()
-        const currentYear = now.getFullYear()
         return (
           b.status === "completed" &&
-          bookingDate.getMonth() === currentMonth &&
-          bookingDate.getFullYear() === currentYear
+          bookingEndDate.getMonth() === now.getMonth() &&
+          bookingEndDate.getFullYear() === now.getFullYear()
         )
       })
       .reduce((sum, b) => sum + b.totalAmount, 0),
