@@ -23,12 +23,14 @@ import {
   Camera,
   Phone,
   List,
+  Package,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 
-type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "overtime" | "cancelled";
+type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "overtime" | "cancelled" | "unknown";
 
 interface StatusLog {
   id?: string;
@@ -53,7 +55,7 @@ interface Booking {
   status: BookingStatus;
   createdAt?: string;
   notes?: string;
-  statusChangeLogs?: Record<string, any>;
+  statusChangeLogs?: Record<string, { status: BookingStatus; timestamp: string }>;
   __logs?: StatusLog[];
 }
 
@@ -73,6 +75,7 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
   completed: "bg-gray-500",
   overtime: "bg-orange-500",
   cancelled: "bg-red-500",
+  unknown: "bg-gray-500",
 };
 
 const EVENT_COLORS = {
@@ -82,7 +85,8 @@ const EVENT_COLORS = {
 };
 
 const normalizeToDate = (d: string | Date) => {
-  const date = typeof d === "string" ? new Date(d) : new Date(d);
+  const date = typeof d === "string" ? parseISO(d) : new Date(d);
+  if (isNaN(date.getTime())) return new Date(0);
   date.setHours(0, 0, 0, 0);
   return date;
 };
@@ -92,6 +96,8 @@ const isSameDay = (a: Date, b: Date) =>
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
 
+const ACTIVE_STATUSES: BookingStatus[] = ["pending", "confirmed", "active", "overtime"];
+
 export function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -99,21 +105,73 @@ export function CalendarView() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<"month" | "day">("month");
 
-  // Refs & utils
   const timelineRef = useRef<HTMLDivElement>(null);
   const now = new Date();
   const currentHour = now.getHours();
-  const displayHours = Array.from({ length: 24 }, (_, i) => i); // 0 → 23
+  const displayHours = Array.from({ length: 16 }, (_, i) => i + 7); // 7 → 22
   const activeDay = selectedDay || new Date();
+
+  // Hàm tính thống kê cho bất kỳ ngày nào (linh hoạt, xử lý tất cả trường hợp)
+  const calculateStatsForDay = (targetDate: Date) => {
+    const dayStart = normalizeToDate(targetDate);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const activeBookings = bookings.filter((b) => {
+      // 1. Bắt buộc có dữ liệu cần thiết (bỏ qua nếu thiếu → tránh crash)
+      if (!b || !b.startDate || !b.endDate || !b.cameraId || !b.customerName) return false;
+
+      // 2. Chỉ count các status đang "chiếm máy" (bỏ status lạ hoặc không xác định)
+      if (!ACTIVE_STATUSES.includes(b.status)) return false;
+
+      // 3. Kiểm tra ngày hợp lệ (start > end → bỏ qua, dữ liệu lỗi)
+      const start = normalizeToDate(b.startDate);
+      const end = normalizeToDate(b.endDate);
+      if (start > end) return false;
+
+      // 4. Kiểm tra overlap với ngày target (chuẩn cho multi-day, same-day)
+      return start <= dayEnd && end >= dayStart;
+    });
+
+    // Máy đang thuê: unique cameraId (chuẩn, không trùng máy)
+    const uniqueCameras = new Set(activeBookings.map(b => b.cameraId)).size;
+
+    // Khách đang thuê: unique bằng tên + sđt (xử lý trùng tên nhưng khác người, nếu thiếu phone dùng email)
+    const uniqueCustomers = new Set(
+      activeBookings.map(b => {
+        const name = (b.customerName || "").trim().toLowerCase();
+        const phone = (b.customerPhone || "").trim();
+        const email = (b.customerEmail || "").trim().toLowerCase();
+        return name ? `${name}|${phone || email || b.id}` : b.id; // fallback id nếu thiếu hết
+      })
+    ).size;
+
+    // Tổng đơn đang hoạt động (full count, không unique)
+    const totalBookings = activeBookings.length;
+
+    return {
+      totalCameras: uniqueCameras,
+      totalCustomers: uniqueCustomers,
+      totalBookings,
+    };
+  };
+
+  const stats = useMemo(() => {
+    const target = viewMode === "day" && selectedDay ? selectedDay : new Date();
+    return calculateStatsForDay(target);
+  }, [bookings, viewMode, selectedDay]);
 
   // Auto scroll to current hour in Day View
   useEffect(() => {
     if (viewMode === "day" && timelineRef.current) {
-      const hourHeight = 48;
-      const offset = currentHour * hourHeight - 120;
-      timelineRef.current.scrollTop = Math.max(0, offset);
+      const currentHour = new Date().getHours();
+      if (currentHour >= 7 && currentHour <= 22) {
+        const index = currentHour - 7;
+        const hourHeight = 48;
+        timelineRef.current.scrollTop = index * hourHeight - 100;
+      }
     }
-  }, [viewMode, activeDay, currentHour]);
+  }, [viewMode, activeDay]);
 
   // Load bookings from Firebase
   useEffect(() => {
@@ -125,7 +183,7 @@ export function CalendarView() {
       }
       const data = snap.val();
       const list: Booking[] = Object.entries(data).map(([id, v]: [string, any]) => {
-        const b: Booking = { id, ...v };
+        const b = { id, ...v } as Booking;
         const logsObj = v.statusChangeLogs;
         if (logsObj && typeof logsObj === "object") {
           b.__logs = Object.entries(logsObj).map(([lid, lv]: [string, any]) => {
@@ -318,6 +376,48 @@ export function CalendarView() {
         <p className="text-sm sm:text-base text-muted-foreground">Xem lịch theo tháng hoặc chi tiết theo ngày</p>
       </div>
 
+      {/* THỐNG KÊ ĐỘNG - HIỂN THỊ LUÔN TRÊN CÙNG */}
+      <Card className="border-2 border-primary/20 bg-primary/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            Thống kê ngày {format(viewMode === "day" && selectedDay ? selectedDay : new Date(), "dd/MM/yyyy", { locale: vi })}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="text-center p-5 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
+              <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+                {stats.totalCameras}
+              </div>
+              <div className="text-sm text-muted-foreground mt-2 flex items-center justify-center gap-1">
+                <Camera className="h-4 w-4" />
+                Máy đang cho thuê
+              </div>
+            </div>
+
+            <div className="text-center p-5 bg-green-50 dark:bg-green-950/30 rounded-xl border border-green-200 dark:border-green-800">
+              <div className="text-4xl font-bold text-green-600 dark:text-green-400">
+                {stats.totalCustomers}
+              </div>
+              <div className="text-sm text-muted-foreground mt-2 flex items-center justify-center gap-1">
+                <Users className="h-4 w-4" />
+                Khách hàng đang thuê
+              </div>
+            </div>
+
+            <div className="text-center p-5 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800">
+              <div className="text-4xl font-bold text-purple-600 dark:text-purple-400">
+                {stats.totalBookings}
+              </div>
+              <div className="text-sm text-muted-foreground mt-2">
+                Tổng đơn đang hoạt động
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
         <div className="flex gap-2 flex-wrap">
           <Button variant={viewMode === "month" ? "default" : "outline"} onClick={() => setViewMode("month")}>
@@ -443,7 +543,7 @@ export function CalendarView() {
                 ref={timelineRef}
                 className="w-full grid grid-cols-[60px_1fr] max-h-[70vh] sm:max-h-[80vh] border rounded-lg bg-card/50 scrollbar-thin scrollbar-thumb-muted"
               >
-                {/* Cột giờ */}
+                {/* Cột giờ: 7h → 22h */}
                 <div className="sticky top-0 z-10 bg-card border-r">
                   {displayHours.map((h) => (
                     <div
@@ -466,10 +566,7 @@ export function CalendarView() {
                       (e) => e.time && e.time.getHours() === h
                     );
                     return (
-                      <div
-                        key={h}
-                        className="h-12 border-b border-muted/20 flex items-center gap-1 px-1 sm:px-2"
-                      >
+                      <div key={h} className="h-12 border-b border-muted/20 flex items-center gap-1 px-1 sm:px-2">
                         {hourEvents.length === 0 ? (
                           <div className="text-xs text-muted-foreground/50 truncate">—</div>
                         ) : (

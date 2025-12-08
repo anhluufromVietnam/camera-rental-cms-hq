@@ -60,14 +60,36 @@ interface PaymentInfo {
   paymentSyntax: string
 }
 
+interface BookedPeriod {
+  startDate: Date
+  endDate: Date
+  startTime: string
+  endTime: string
+  status: string
+}
+
 const normalizeDate = (d: string | Date) => {
   const date = new Date(d)
   date.setHours(0, 0, 0, 0)
   return date
 }
 
+const isSameDay = (a: Date, b: Date) => {
+  return normalizeDate(a).getTime() === normalizeDate(b).getTime()
+}
+
+const timesOverlap = (es: string, ee: string, ns: string, ne: string) => {
+  const toHour = (t: string) => parseInt(t.split(':')[0], 10)
+  const esh = toHour(es || '00:00')
+  const eeh = toHour(ee || '23:59')
+  const nsh = toHour(ns || '00:00')
+  const neh = toHour(ne || '23:59')
+  return !(neh <= esh || nsh >= eeh)
+}
+
 export function PublicBooking() {
   const [cameras, setCameras] = useState<CameraType[]>([])
+  const [availableCameras, setAvailableCameras] = useState<CameraType[]>([])
   const [selectedCamera, setSelectedCamera] = useState<CameraType | null>(null)
   const [bookingForm, setBookingForm] = useState<BookingForm>({
     cameraId: "",
@@ -88,7 +110,7 @@ export function PublicBooking() {
   const [phoneError, setPhoneError] = useState<string>("")
   const [isConfirmSubmitting, setIsConfirmSubmitting] = useState(false)
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null)
-  const [bookedDates, setBookedDates] = useState<Date[]>([])
+  const [bookedPeriodsByCamera, setBookedPeriodsByCamera] = useState<Record<string, BookedPeriod[]>>({}) // Modified: periods instead of dates
   const [showGallery, setShowGallery] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const invalidBookingStatuses = ["pending", "confirmed", "active"];
@@ -99,12 +121,12 @@ export function PublicBooking() {
     if (!showSuccess) return
     const timer = setTimeout(() => {
       setShowSuccess(false)
-      setStep("select")
+      setStep("dates")
     }, 3000)
     return () => clearTimeout(timer)
   }, [showSuccess])
 
-  // Fetch available cameras (only active ones)
+  // Fetch all active cameras
   useEffect(() => {
     const camerasRef = ref(db, "cameras")
 
@@ -121,6 +143,70 @@ export function PublicBooking() {
       setCameras(cameraList)
     })
   }, [])
+
+  // Fetch all bookings and compute booked dates per camera
+  // Fetch all bookings and compute booked periods per camera (modified)
+  useEffect(() => {
+    const bookingsRef = ref(db, "bookings")
+
+    const unsubscribe = onValue(bookingsRef, (snapshot) => {
+      const bookingsData = snapshot.exists() ? snapshot.val() : {}
+      const bookedMap: Record<string, BookedPeriod[]> = {}
+
+      Object.values(bookingsData).forEach((b: any) => {
+        if (!b || !["pending", "confirmed", "active", "overtime"].includes(b.status)) return
+        if (!b.startDate || !b.endDate) return // Skip invalid
+
+        const cameraId = b.cameraId
+        if (!bookedMap[cameraId]) bookedMap[cameraId] = []
+
+        bookedMap[cameraId].push({
+          startDate: new Date(b.startDate),
+          endDate: new Date(b.endDate),
+          startTime: b.startTime || '00:00', // Default full day if missing
+          endTime: b.endTime || '23:59',
+          status: b.status
+        })
+      })
+
+      setBookedPeriodsByCamera(bookedMap)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  // Filter available cameras based on selected dates and times (modified)
+  useEffect(() => {
+    if (!bookingForm.startDate || !bookingForm.endDate || !bookingForm.startTime || !bookingForm.endTime) {
+      setAvailableCameras([])
+      return
+    }
+
+    const selectedStart = normalizeDate(bookingForm.startDate)
+    const selectedEnd = normalizeDate(bookingForm.endDate)
+    const selectedStartTime = bookingForm.startTime
+    const selectedEndTime = bookingForm.endTime
+
+    const filtered = cameras.filter((camera) => {
+      const periods = bookedPeriodsByCamera[camera.id] || []
+      const hasOverlap = periods.some((period) => {
+        const pStart = normalizeDate(period.startDate)
+        const pEnd = normalizeDate(period.endDate)
+
+        if (selectedEnd < pStart || selectedStart > pEnd) return false // No date overlap
+
+        // If multi-day or different days, consider overlap
+        if (!isSameDay(selectedStart, selectedEnd) || !isSameDay(pStart, pEnd)) return true
+
+        // Same day: check times
+        return timesOverlap(period.startTime, period.endTime, selectedStartTime, selectedEndTime)
+      })
+
+      return !hasOverlap
+    })
+
+    setAvailableCameras(filtered)
+  }, [bookingForm.startDate, bookingForm.endDate, bookingForm.startTime, bookingForm.endTime, cameras, bookedPeriodsByCamera])
 
   const handleCameraSelect = (camera: CameraType) => {
     setSelectedCamera(camera)
@@ -160,44 +246,22 @@ export function PublicBooking() {
     return false
   }
 
-  const handleDateSelect = async () => {
+  const handleDateSelect = () => {
     if (!bookingForm.startDate || !bookingForm.endDate) {
       toast({ title: "Lỗi", description: "Vui lòng chọn ngày", variant: "destructive" })
       return
     }
 
-    try {
-      const snap = await get(ref(db, "bookings"))
-      const allBookings = snap.exists() ? Object.values(snap.val()) : []
-
-      const start = new Date(bookingForm.startDate)
-      const end = new Date(bookingForm.endDate)
-
-      start.setHours(0, 0, 0, 0)
-      end.setHours(23, 59, 59, 999)
-
-      const result = cameras.filter(cam => {
-        const isOverlap = allBookings.some((b: any) => {
-          if (b.cameraId !== cam.id) return false
-          if (!["pending", "confirmed"].includes(b.status)) return false
-
-          const bStart = new Date(b.startDate)
-          const bEnd = new Date(b.endDate)
-          bStart.setHours(0, 0, 0, 0)
-          bEnd.setHours(23, 59, 59, 999)
-
-          return start <= bEnd && end >= bStart
-        })
-
-        return !isOverlap
+    if (availableCameras.length === 0) {
+      toast({
+        title: "Không có máy sẵn",
+        description: "Không có máy ảnh nào sẵn sàng trong khoảng thời gian này. Vui lòng chọn thời gian khác.",
+        variant: "destructive",
       })
-
-      setAvailableCameras(result)
-      setStep("select") 
-    } catch (err) {
-      console.error(err)
-      toast({ title: "Lỗi", description: "Không thể kiểm tra lịch", variant: "destructive" })
+      return
     }
+
+    setStep("select")
   }
 
   const handleDetailsSubmit = () => {
@@ -282,22 +346,23 @@ export function PublicBooking() {
       notes: "",
       depositMethod: ""
     })
-    setStep("select")
+    setStep("dates")
     setPhoneError("")
     setStepError("")
   }
 
   const isFormValid = () => {
     return (
-      bookingForm.customerName &&
-      bookingForm.customerEmail &&
-      bookingForm.customerPhone &&
+      bookingForm.customerName.trim() !== "" &&
+      bookingForm.customerEmail.trim() !== "" &&
+      bookingForm.customerPhone.trim() !== "" &&
       bookingForm.startDate &&
       bookingForm.endDate &&
-      /^[0-9]{9,11}$/.test(bookingForm.customerPhone)
-      // /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail) 
+      /^[0-9]{9,11}$/.test(bookingForm.customerPhone) &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail)
     )
   }
+
 
   const isDayValid = () => {
     return (
@@ -326,6 +391,7 @@ export function PublicBooking() {
   const stepsConfig = [
     { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
     { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
+    { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
     { key: "details", label: "Thông tin khách", icon: User },
     { key: "confirm", label: "Xác nhận", icon: Check },
   ] as const
@@ -333,6 +399,7 @@ export function PublicBooking() {
   const validateStep = (key: (typeof stepsConfig)[number]["key"]) => {
     if (key === "dates" && !isDayValid())
       return "Vui lòng chọn ngày thuê và ngày trả"
+    if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
     if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
     if (key === "details" && !isFormValid())
       return "Vui lòng điền đầy đủ thông tin"
@@ -436,7 +503,7 @@ export function PublicBooking() {
       <div className="text-center max-w-2xl mx-auto">
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">Đặt thuê máy ảnh</h2>
         <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
-          Chọn máy ảnh và thời gian thuê phù hợp với nhu cầu của bạn
+          Chọn thời gian thuê và máy ảnh phù hợp với nhu cầu của bạn
         </p>
       </div>
 
@@ -797,98 +864,110 @@ export function PublicBooking() {
 
           {/* Camera list */}
           <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {cameras.map((camera) => {
-              const imageCount = camera.images?.length || 0
-              const visibleImages = camera.images?.slice(0, 3) || []
-              const extraCount = imageCount > 3 ? imageCount - 3 : 0
+            {availableCameras.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <CameraIcon className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Không có máy ảnh sẵn sàng</h3>
+                  <p className="text-muted-foreground text-center">
+                    Tất cả máy ảnh đang được thuê hoặc bảo trì trong khoảng thời gian này. Vui lòng chọn thời gian khác.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              availableCameras.map((camera) => {
+                const imageCount = camera.images?.length || 0
+                const visibleImages = camera.images?.slice(0, 3) || []
+                const extraCount = imageCount > 3 ? imageCount - 3 : 0
 
-              return (
-                <Card
-                  key={camera.id}
-                  className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col"
-                  onClick={() => handleCameraSelect(camera)}
-                >
-                  <div className="grid grid-cols-3 gap-1 p-2">
-                    {visibleImages.map((img, idx) => (
-                      <div key={idx} className="relative aspect-square overflow-hidden rounded-md">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedCamera(camera)
-                            setShowGallery(true)
-                            setActiveIndex(idx)
-                          }}
-                          className="w-full h-full"
-                        >
-                          <img
-                            src={img}
-                            alt={`Ảnh ${idx + 1}`}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 rounded-md"
-                          />
-                          {idx === 2 && extraCount > 0 && (
-                            <div className="absolute inset-0 bg-black/60 text-white text-xl font-semibold flex items-center justify-center rounded-md hover:bg-black/70 transition">
-                              +{extraCount}
-                            </div>
-                          )}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <CameraIcon className="h-5 w-5 text-primary" />
-                      <div>
-                        <CardTitle className="text-lg font-semibold">{camera.name}</CardTitle>
-                        <CardDescription className="text-sm text-muted-foreground">
-                          {camera.brand} {camera.model}
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-3 flex-1">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">Loại máy</Label>
-                      <Badge variant="secondary">{camera.category}</Badge>
+                return (
+                  <Card
+                    key={camera.id}
+                    className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col"
+                    onClick={() => handleCameraSelect(camera)}
+                  >
+                    <div className="grid grid-cols-3 gap-1 p-2">
+                      {visibleImages.map((img, idx) => (
+                        <div key={idx} className="relative aspect-square overflow-hidden rounded-md">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedCamera(camera)
+                              setShowGallery(true)
+                              setActiveIndex(idx)
+                            }}
+                            className="w-full h-full"
+                          >
+                            <img
+                              src={img}
+                              alt={`Ảnh ${idx + 1}`}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 rounded-md"
+                            />
+                            {idx === 2 && extraCount > 0 && (
+                              <div className="absolute inset-0 bg-black/60 text-white text-xl font-semibold flex items-center justify-center rounded-md hover:bg-black/70 transition">
+                                +{extraCount}
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      ))}
                     </div>
 
-                    {camera.description && (
-                      <div>
-                        <Label className="block mb-1 text-sm font-medium">Mô tả</Label>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {camera.description}
-                        </p>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-2">
+                        <CameraIcon className="h-5 w-5 text-primary" />
+                        <div>
+                          <CardTitle className="text-lg font-semibold">{camera.name}</CardTitle>
+                          <CardDescription className="text-sm text-muted-foreground">
+                            {camera.brand} {camera.model}
+                          </CardDescription>
+                        </div>
                       </div>
-                    )}
+                    </CardHeader>
 
-                    {camera.specifications && (
-                      <div>
-                        <Label className="block mb-1 text-sm font-medium">Thông số</Label>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {camera.specifications}
-                        </p>
+                    <CardContent className="space-y-3 flex-1">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Loại máy</Label>
+                        <Badge variant="secondary">{camera.category}</Badge>
                       </div>
-                    )}
-                  </CardContent>
 
-                  <div className="p-4 pt-0">
-                    <Button
-                      variant="default"
-                      className="w-full"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCameraSelect(camera)
-                        document.getElementById("booking-section")?.scrollIntoView({ behavior: "smooth" })
-                      }}
-                    >
-                      Chọn máy này
-                    </Button>
-                  </div>
-                </Card>
-              )
-            })}
+                      {camera.description && (
+                        <div>
+                          <Label className="block mb-1 text-sm font-medium">Mô tả</Label>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {camera.description}
+                          </p>
+                        </div>
+                      )}
+
+                      {camera.specifications && (
+                        <div>
+                          <Label className="block mb-1 text-sm font-medium">Thông số</Label>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {camera.specifications}
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+
+                    <div className="p-4 pt-0">
+                      <Button
+                        variant="default"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCameraSelect(camera)
+                          document.getElementById("booking-section")?.scrollIntoView({ behavior: "smooth" })
+                        }}
+                      >
+                        Chọn máy này
+                      </Button>
+                    </div>
+                  </Card>
+                )
+              })
+            )}
           </div>
         </>
       )}
@@ -1012,7 +1091,7 @@ export function PublicBooking() {
             <div className="flex flex-col sm:flex-row justify-between gap-3 pt-2">
               <Button
                 variant="outline"
-                onClick={() => setStep("dates")}
+                onClick={() => setStep("select")}
                 className="w-full sm:w-auto"
               >
                 Quay lại
@@ -1236,18 +1315,6 @@ export function PublicBooking() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {cameras.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <CameraIcon className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Hiện tại không có máy ảnh</h3>
-            <p className="text-muted-foreground text-center">
-              Tất cả máy ảnh đang được thuê hoặc bảo trì. Vui lòng quay lại sau.
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
