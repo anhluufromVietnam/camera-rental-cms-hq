@@ -40,6 +40,7 @@ interface Booking {
   status: "pending" | "confirmed" | "active" | "completed" | "overtime" | "cancelled"
   createdAt: string
   notes?: string
+  depositMethod: string
 }
 
 const normalizeDate = (d: string | Date) => {
@@ -56,6 +57,13 @@ const BOOKING_STATUSES = [
   { value: "overtime", label: "Quá hạn", color: "bg-orange-500" },
   { value: "cancelled", label: "Đã hủy", color: "bg-red-500" },
 ]
+
+const DEPOSIT_METHODS: Record<string, string> = {
+  "cccd-taisan": "CCCD + tài sản tương đương (Laptop, Macbook, xe máy...)",
+  "cccd-80": "CCCD + 80% giá trị máy",
+  "100": "Cọc 100% giá trị máy",
+};
+
 
 export function BookingDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -353,6 +361,10 @@ export function BookingDashboard() {
 
                     <p>
                       <span className="font-medium">Số ngày:</span> {booking.totalDays || 0} ngày
+                    </p>
+                    <p>
+                      <span className="font-medium">Phương thức cọc máy:</span> {""}
+                      {DEPOSIT_METHODS[booking.depositMethod] ?? "—"}
                     </p>
                   </div>
 

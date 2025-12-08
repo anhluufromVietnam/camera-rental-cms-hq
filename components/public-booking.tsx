@@ -32,6 +32,7 @@ interface CameraType {
   threeDaysRate: number
   fiveDaysRate: number
   isBooked: boolean
+  available: number
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
@@ -115,12 +116,10 @@ export function PublicBooking() {
           const cam = camValue as Omit<CameraType, "id">
           return { id, ...cam }
         })
-        .filter((c) => c.status === "active")
+        .filter((c) => c.status === "active" && c.available === 1)
 
       setCameras(cameraList)
     })
-
-    return () => unsubscribe()
   }, [])
 
   const handleCameraSelect = (camera: CameraType) => {
@@ -242,6 +241,7 @@ export function PublicBooking() {
         status: "pending",
         createdAt: new Date().toISOString(),
         notes: bookingForm.notes,
+        depositMethod: bookingForm.depositMethod
       }
 
       await push(ref(db, "bookings"), newBooking)
@@ -413,13 +413,7 @@ export function PublicBooking() {
     let rate: number
     let label: string
 
-    if (hours >= 120 && selectedCamera.fiveDaysRate > 0) {
-      rate = selectedCamera.fiveDaysRate
-      label = "5 ngày trở lên"
-    } else if (hours >= 72 && selectedCamera.threeDaysRate > 0) {
-      rate = selectedCamera.threeDaysRate
-      label = "3 ngày trở lên"
-    } else if (hours >= 24 && selectedCamera.fullDayRate > 0) {
+    if (hours > 6 && selectedCamera.fullDayRate > 0) {
       rate = selectedCamera.fullDayRate
       label = "1 ngày trở lên"
     } else {
@@ -507,11 +501,11 @@ export function PublicBooking() {
             <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-primary rounded-sm" />
-                <span>Ngày đã chọn</span>
+                <span>Ngày nhận máy</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-red-400 rounded-sm" />
-                <span>Đã được đặt</span>
+                <span>Ngày trả máy</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-sm" />

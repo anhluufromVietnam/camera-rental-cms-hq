@@ -40,10 +40,8 @@ interface Camera {
   brand: string
   model: string
   category: string
+  sixHoursRate: number
   ondayRate: number
-  fullDayRate: number
-  threeDaysRate: number
-  fiveDaysRate: number
   quantity: number
   available: number
   description: string
@@ -177,9 +175,7 @@ export function CameraManagement() {
   const getRatePrice = (camera: Camera, type: string) => {
     switch (type) {
       case "ondayRate": return camera.ondayRate
-      case "fullDayRate": return camera.fullDayRate || camera.ondayRate
-      case "threeDaysRate": return camera.threeDaysRate || camera.ondayRate
-      case "fiveDaysRate": return camera.fiveDaysRate || camera.ondayRate
+      case "sixHoursRate": return camera.sixHoursRate || camera.ondayRate
       default: return camera.ondayRate
     }
   }
@@ -209,7 +205,7 @@ export function CameraManagement() {
               <DialogTitle>Thêm máy ảnh mới</DialogTitle>
               <DialogDescription>Nhập thông tin chi tiết</DialogDescription>
             </DialogHeader>
-            <div className="p-6">
+            <div className="p-1">
               <CameraForm onSubmit={handleAddCamera} />
             </div>
           </DialogContent>
@@ -243,19 +239,30 @@ export function CameraManagement() {
                     <CardDescription className="truncate">{camera.brand} {camera.model}</CardDescription>
                   </div>
                 </div>
-                <Badge variant={camera.status === "active" ? "default" : "secondary"} className="whitespace-nowrap">
+                <Badge
+                  variant={camera.status === "active" ? "default" : "secondary"}
+                  className="whitespace-nowrap"
+                >
                   {camera.status === "active" ? "Hoạt động" : camera.status === "maintenance" ? "Bảo trì" : "Ngừng"}
                 </Badge>
               </div>
             </CardHeader>
+
             <CardContent className="space-y-4">
+              {/* Loại máy ảnh */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <Label className="text-muted-foreground">Loại</Label>
                   <p className="font-medium truncate">{camera.category}</p>
                 </div>
+                <div>
+                  <Label className="text-muted-foreground">Tình trạng</Label>
+                  <p className="font-medium">{camera.available} sẵn có </p>
+                </div>
               </div>
 
+
+              {/* Giá thuê */}
               <div>
                 <Label className="text-muted-foreground">Giá thuê</Label>
                 <Select
@@ -266,10 +273,8 @@ export function CameraManagement() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
-                    <SelectItem value="ondayRate">Trong ngày</SelectItem>
-                    <SelectItem value="fullDayRate">1 ngày</SelectItem>
-                    <SelectItem value="threeDaysRate">3 ngày</SelectItem>
-                    <SelectItem value="fiveDaysRate">5 ngày</SelectItem>
+                    <SelectItem value="sixHoursRate">Trong ngày</SelectItem>
+                    <SelectItem value="ondayRate">1 ngày</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="font-medium mt-1 text-primary">
@@ -277,35 +282,65 @@ export function CameraManagement() {
                 </p>
               </div>
 
+              {/* Ảnh */}
               {camera.images && camera.images.length > 0 && (
                 <div className="flex flex-wrap gap-1 -ml-1">
                   {camera.images.slice(0, 3).map((img, i) => (
-                    <img key={i} src={img} alt="" className="w-12 h-12 sm:w-12 sm:h-12 object-cover rounded border flex-shrink-0" />
+                    <img
+                      key={i}
+                      src={img}
+                      alt=""
+                      className="w-12 h-12 sm:w-12 sm:h-12 object-cover rounded border flex-shrink-0"
+                    />
                   ))}
                   {camera.images.length > 3 && (
-                    <div className="w-12 h-12 bg-muted rounded flex items-center justify-center text-xs">+{camera.images.length - 3}</div>
+                    <div className="w-12 h-12 bg-muted rounded flex items-center justify-center text-xs">
+                      +{camera.images.length - 3}
+                    </div>
                   )}
                 </div>
               )}
 
+              {/* Actions */}
               <div className="flex flex-wrap gap-2 pt-2">
+                {/* Dialog sửa máy ảnh */}
                 <Dialog open={editingCamera?.id === camera.id} onOpenChange={o => !o && setEditingCamera(null)}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setEditingCamera(camera)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingCamera(camera)}
+                    >
                       <Edit className="h-3 w-3 mr-1" /> Sửa
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="fixed inset-0 m-auto w-[90vw] sm:w-[80vw] md:w-[60vw] lg:w-[50vw] xl:w-[40vw] max-w-full max-h-[90vh] overflow-y-auto rounded-lg shadow-lg">
-                    <DialogHeader className="sticky top-0 bg-background p-6 border-b">
+
+                  <DialogContent className="sm:max-w-3xl w-full max-h-[80vh] overflow-y-auto rounded-lg p-0">
+                    {/* Header */}
+                    <DialogHeader className="sticky top-0 bg-background p-4 sm:p-5 md:p-6 border-b z-10">
                       <DialogTitle>Chỉnh sửa máy ảnh</DialogTitle>
                       <DialogDescription>Cập nhật thông tin</DialogDescription>
                     </DialogHeader>
-                    <div className="p-4 md:p-6">
-                      <CameraForm camera={camera} onSubmit={handleEditCamera} isEditing />
+
+                    {/* Form container */}
+                    <div className="p-4 sm:p-5 md:p-6">
+                      <CameraForm
+                        camera={camera}
+                        onSubmit={handleEditCamera}
+                        isEditing
+                      />
                     </div>
                   </DialogContent>
                 </Dialog>
-                <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDeleteCamera(camera.id)}>
+
+
+                {/* Xóa */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => handleDeleteCamera(camera.id)}
+                >
                   <Trash2 className="h-3 w-3 mr-1" /> Xóa
                 </Button>
               </div>
@@ -342,9 +377,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
     model: camera?.model || "",
     category: camera?.category || "",
     ondayRate: camera?.ondayRate || 0,
-    fullDayRate: camera?.fullDayRate || 0,
-    threeDaysRate: camera?.threeDaysRate || 0,
-    fiveDaysRate: camera?.fiveDaysRate || 0,
+    sixHoursRate: camera?.sixHoursRate || 0,
     quantity: camera?.quantity || 1,
     available: camera?.available || 1,
     description: camera?.description || "",
@@ -404,109 +437,158 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Tên máy ảnh */}
-        <div>
-          <Label>Tên máy ảnh *</Label>
-          <Input className="w-full" value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} required />
-        </div>
-        {/* Thương hiệu */}
-        <div>
-          <Label>Thương hiệu *</Label>
-          <Input className="w-full" value={formData.brand} onChange={e => setFormData(p => ({ ...p, brand: e.target.value }))} required />
-        </div>
-        {/* Model */}
-        <div>
-          <Label>Model *</Label>
-          <Input className="w-full" value={formData.model} onChange={e => setFormData(p => ({ ...p, model: e.target.value }))} required />
-        </div>
-        {/* Loại máy ảnh */}
-        <div>
-          <Label>Loại máy ảnh</Label>
-          <Select value={formData.category} onValueChange={v => setFormData(p => ({ ...p, category: v }))}>
-            <SelectTrigger className="w-full"><SelectValue placeholder="Chọn loại" /></SelectTrigger>
-            <SelectContent className="bg-white dark:bg-gray-900 max-h-[60vh] overflow-y-auto">
-              {CAMERA_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+    <div className="p-4 sm:p-5 md:p-6 max-w-2xl sm:max-w-3xl mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-6">
 
-      {/* Giá thuê */}
-      <div className="space-y-3">
-        <Label>Giá thuê (VNĐ)</Label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { key: "ondayRate", label: "Trong ngày (6h)" },
-            { key: "fullDayRate", label: "1 ngày" },
-            { key: "threeDaysRate", label: "3 ngày" },
-            { key: "fiveDaysRate", label: "5 ngày" }
-          ].map(({ key, label }) => (
-            <div key={key}>
-              <Label className="text-xs">{label}</Label>
-              <Input
-                type="number"
-                className="w-full"
-                value={formData[key as keyof typeof formData]}
-                onChange={e => setFormData(p => ({ ...p, [key]: +e.target.value || 0 }))}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
+        {/* Grid thông tin cơ bản */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Tên máy ảnh */}
+          <div>
+            <Label>Tên máy ảnh *</Label>
+            <Input
+              className="w-full"
+              value={formData.name}
+              onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+              required
+            />
+          </div>
 
-      {/* Ảnh máy ảnh */}
-      <div>
-        <Label>Ảnh máy ảnh</Label>
-        <Input type="file" accept="image/*" multiple onChange={handleFiles} className="mt-1 w-full" />
-        {previews.length > 0 && (
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-3">
-            {[...formData.images, ...files.map(f => URL.createObjectURL(f))].map((url, i) => (
-              <div key={i} className="relative group rounded-lg overflow-hidden border aspect-square">
-                <img src={url} alt="" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
-                >
-                  <X className="h-3 w-3" />
-                </button>
+          {/* Thương hiệu */}
+          <div>
+            <Label>Thương hiệu *</Label>
+            <Input
+              className="w-full"
+              value={formData.brand}
+              onChange={e => setFormData(p => ({ ...p, brand: e.target.value }))}
+              required
+            />
+          </div>
+
+          {/* Model */}
+          <div>
+            <Label>Model *</Label>
+            <Input
+              className="w-full"
+              value={formData.model}
+              onChange={e => setFormData(p => ({ ...p, model: e.target.value }))}
+              required
+            />
+          </div>
+
+          {/* Loại máy ảnh */}
+          <div>
+            <Label>Loại máy ảnh</Label>
+            <Select
+              value={formData.category}
+              onValueChange={v => setFormData(p => ({ ...p, category: v }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Chọn loại" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-gray-900 max-h-[60vh] overflow-y-auto">
+                {CAMERA_CATEGORIES.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Giá thuê */}
+        <div className="space-y-3">
+          <Label>Giá thuê (VNĐ)</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { key: "sixHoursRate", label: "Trong ngày (6h)" },
+              { key: "ondayRate", label: "1 ngày" },
+            ].map(({ key, label }) => (
+              <div key={key}>
+                <Label className="text-xs">{label}</Label>
+                <Input
+                  type="number"
+                  className="w-full"
+                  value={formData[key as keyof typeof formData]}
+                  onChange={e => setFormData(p => ({ ...p, [key]: +e.target.value || 0 }))}
+                />
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Mô tả và thông số */}
-      <div>
-        <Label>Mô tả</Label>
-        <Textarea className="w-full" value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} rows={3} />
-      </div>
-      <div>
-        <Label>Thông số kỹ thuật</Label>
-        <Textarea className="w-full" value={formData.specifications} onChange={e => setFormData(p => ({ ...p, specifications: e.target.value }))} rows={3} />
-      </div>
+        {/* Ảnh máy ảnh */}
+        <div>
+          <Label>Ảnh máy ảnh</Label>
+          <Input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFiles}
+            className="mt-1 w-full"
+          />
+          {previews.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-3">
+              {[...formData.images, ...files.map(f => URL.createObjectURL(f))].map((url, i) => (
+                <div key={i} className="relative group rounded-lg overflow-hidden border aspect-square">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-      {/* Trạng thái */}
-      <div>
-        <Label>Trạng thái</Label>
-        <Select value={formData.status} onValueChange={v => setFormData(p => ({ ...p, status: v as any }))}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-white dark:bg-gray-900 max-h-[60vh] overflow-y-auto">
-            <SelectItem value="active">Hoạt động</SelectItem>
-            <SelectItem value="maintenance">Bảo trì</SelectItem>
-            <SelectItem value="retired">Ngừng hoạt động</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        {/* Mô tả & thông số kỹ thuật */}
+        <div>
+          <Label>Mô tả</Label>
+          <Textarea
+            className="w-full"
+            value={formData.description}
+            onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
+            rows={3}
+          />
+        </div>
 
-      <DialogFooter>
-        <Button type="submit" disabled={uploading} className="w-full sm:w-auto">
-          {uploading ? "Đang xử lý..." : isEditing ? "Cập nhật" : "Thêm máy ảnh"}
-        </Button>
-      </DialogFooter>
-    </form>
+        <div>
+          <Label>Thông số kỹ thuật</Label>
+          <Textarea
+            className="w-full"
+            value={formData.specifications}
+            onChange={e => setFormData(p => ({ ...p, specifications: e.target.value }))}
+            rows={3}
+          />
+        </div>
 
-  )
+        {/* Trạng thái */}
+        <div>
+          <Label>Trạng thái</Label>
+          <Select
+            value={formData.status}
+            onValueChange={v => setFormData(p => ({ ...p, status: v as any }))}
+          >
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-white dark:bg-gray-900 max-h-[60vh] overflow-y-auto">
+              <SelectItem value="active">Hoạt động</SelectItem>
+              <SelectItem value="maintenance">Bảo trì</SelectItem>
+              <SelectItem value="retired">Ngừng hoạt động</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Footer button */}
+        <DialogFooter>
+          <Button type="submit" disabled={uploading} className="w-full sm:w-auto">
+            {uploading ? "Đang xử lý..." : isEditing ? "Cập nhật" : "Thêm máy ảnh"}
+          </Button>
+        </DialogFooter>
+
+      </form>
+    </div>
+  );
+
 }

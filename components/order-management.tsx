@@ -55,6 +55,7 @@ interface Booking {
   createdAt: string
   notes?: string
   adminNotes?: string | null
+  depositMethod: string
 }
 
 const STATUS_CONFIG = {
@@ -121,6 +122,90 @@ export function OrderManagement() {
 
   const { toast } = useToast()
 
+  const DEPOSIT_METHODS: Record<string, string> = {
+    "cccd-taisan": "CCCD + tài sản tương đương (Laptop, Macbook, xe máy...)",
+    "cccd-80": "CCCD + 80% giá trị máy",
+    "100": "Cọc 100% giá trị máy",
+  }
+
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [isEditBookingOpen, setIsEditBookingOpen] = useState(false)
+  const [editForm, setEditForm] = useState<Partial<Booking>>({})
+  const calculateTotalDays = () => {
+    if (
+      !editForm.startDate ||
+      !editForm.endDate ||
+      !editForm.startTime ||
+      !editForm.endTime
+    ) {
+      return 0
+    }
+
+    const diffDate = Math.ceil(
+      (normalizeDate(editForm.endDate).getTime() -
+        normalizeDate(editForm.startDate).getTime()) /
+      (1000 * 60 * 60 * 24)
+    ) + 1
+
+    return diffDate
+  }
+
+  const calculateTotalHours = () => {
+    if (
+      !editForm.startDate ||
+      !editForm.endDate ||
+      !editForm.startTime ||
+      !editForm.endTime
+    ) {
+      return 0
+    }
+
+    const [sh, sm] = editForm.startTime.split(":").map(Number)
+    const [eh, em] = editForm.endTime.split(":").map(Number)
+
+    const startDateTime = new Date(editForm.startDate)
+    startDateTime.setHours(sh, sm, 0, 0)
+
+    const endDateTime = new Date(editForm.endDate)
+    endDateTime.setHours(eh, em, 0, 0)
+
+    if (endDateTime <= startDateTime) {
+      return 0
+    }
+
+    return (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60)
+  }
+
+  const getPricingInfo = () => {
+    const hours = calculateTotalHours()
+    if (hours === 0 || !selectedCamera) {
+      return { rate: 0, label: "", total: 0 }
+    }
+
+    let rate: number
+    let label: string
+
+    if (hours > 6 && selectedCamera.fullDayRate > 0) {
+      rate = selectedCamera.fullDayRate
+      label = "1 ngày trở lên"
+    } else {
+      rate = selectedCamera.ondayRate || 0
+      label = "Trong ngày"
+    }
+
+    const days = Math.ceil(hours / 24)
+    const total = days * rate
+
+    return { rate, label, total }
+  }
+
+  const calculateTotalAmount = () => {
+    return getPricingInfo().total
+  }
+
+
+
   // --- realtime load bookings ---
   useEffect(() => {
     const bookingsRef = ref(db, "bookings")
@@ -156,6 +241,16 @@ export function OrderManagement() {
       }
     }
   }, [toast])
+
+  const payload = {
+    customerName: editForm.customerName,
+    customerPhone: editForm.customerPhone,
+    startDate: editForm.startDate,
+    endDate: editForm.endDate,
+    depositMethod: editForm.depositMethod,
+    adminNotes: editForm.adminNotes ?? null,
+  }
+
 
   // --- memoized filteredBookings (no duplicated state) ---
   const filteredBookings = useMemo(() => {
@@ -345,6 +440,7 @@ export function OrderManagement() {
     return STATUS_CONFIG[config.nextStatus as keyof typeof STATUS_CONFIG].label
   }
 
+
   // --- UI render (kept similar to your original) ---
   return (
     <div className="space-y-6 px-4 sm:px-6 lg:px-8">
@@ -439,83 +535,300 @@ export function OrderManagement() {
             Hiển thị {filteredBookings.length} trong tổng số {bookings.length} đơn hàng
           </CardDescription>
         </CardHeader>
- <CardContent className="space-y-4">
-  {filteredBookings.map((booking) => (
-    <div
-      key={booking.id}
-      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-muted/50 transition-colors gap-4 sm:gap-2"
-    >
-      {/* Info chính */}
-      <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-        <div className="flex items-center gap-2 sm:flex-1 min-w-0">
-          <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          <div className="truncate">
-            <h4 className="font-semibold truncate">{booking.customerName}</h4>
-            <p className="text-sm text-muted-foreground truncate">#{booking.id}</p>
-          </div>
-        </div>
+        <CardContent className="space-y-4">
+          {filteredBookings.map((booking) => (
+            <Card
+              key={booking.id}
+              className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-muted/40 transition"
+            >
+              <div className="flex flex-col gap-4">
 
-        <div className="flex items-center gap-2 sm:flex-1 min-w-0">
-          <Camera className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          <div className="truncate">
-            <p className="font-medium truncate">{booking.cameraName}</p>
-            <p className="text-sm text-muted-foreground truncate">
-              {new Date(booking.startDate).toLocaleDateString("vi-VN")} -{" "}
-              {new Date(booking.endDate).toLocaleDateString("vi-VN")}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                  <div className="flex items-center gap-3">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-semibold">{booking.customerName}</p>
+                      <p className="text-sm text-muted-foreground">#{booking.id}</p>
+                      <p className="text-xs text-muted-foreground">{booking.customerPhone}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Camera className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{booking.cameraName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(booking.startDate).toLocaleDateString("vi-VN")} →{" "}
+                        {new Date(booking.endDate).toLocaleDateString("vi-VN")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{booking.totalDays} ngày</p>
+                    </div>
+                  </div>
+
+                  <div className="text-right space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Phương thức đặt cọc:{" "}
+                      <span className="font-medium text-foreground">
+                        {DEPOSIT_METHODS[booking.depositMethod] ?? "—"}
+                      </span>
+                    </p>
+
+                  </div>
+                </div>
+
+                {(booking.notes || booking.adminNotes) && (
+                  <div className="rounded-md bg-muted p-3 text-sm space-y-1">
+                    {booking.notes && (
+                      <p className="italic text-muted-foreground">Ghi chú khách: {booking.notes}</p>
+                    )}
+                    {booking.adminNotes && (
+                      <p className="italic text-blue-600">Ghi chú admin: {booking.adminNotes}</p>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 items-center justify-end">
+
+                  {/* <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedBooking(booking)
+                      setIsDetailsOpen(true)
+                    }}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    Xem
+                  </Button> */}
+
+                  {canUpdateStatus(booking) && (
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        handleQuickStatusUpdate(booking, STATUS_CONFIG[booking.status].nextStatus!)
+                      }
+                    >
+                      {getNextStatusLabel(booking)}
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedBooking(booking)
+                      setEditForm(booking)
+                      setIsEditBookingOpen(true)
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+
+
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDeleteTargetId(booking.id)
+                      setIsDeleteConfirmOpen(true)
+                    }}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+
+                </div>
+              </div>
+            </Card>
+          ))}
+          <Dialog open={isEditBookingOpen} onOpenChange={setIsEditBookingOpen}>
+            <DialogContent className="sm:max-w-lg w-full max-h-[80vh] overflow-y-auto rounded-lg p-0">
+
+              {/* HEADER – giống style CameraForm */}
+              <DialogHeader className="sticky top-0 bg-background p-4 sm:p-5 md:p-6 border-b z-10">
+                <DialogTitle>Sửa đơn #{selectedBooking?.id}</DialogTitle>
+                <DialogDescription>Chỉnh sửa thông tin đặt máy</DialogDescription>
+              </DialogHeader>
+
+              {/* BODY */}
+              <div className="p-4 sm:p-5 md:p-6 space-y-6">
+
+                {/* Tên KH */}
+                <div>
+                  <Label>Tên khách hàng</Label>
+                  <Input
+                    className="mt-1 w-full"
+                    value={editForm.customerName || ""}
+                    onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })}
+                  />
+                </div>
+
+                {/* SDT */}
+                <div>
+                  <Label>Số điện thoại</Label>
+                  <Input
+                    className="mt-1 w-full"
+                    value={editForm.customerPhone || ""}
+                    onChange={(e) => setEditForm({ ...editForm, customerPhone: e.target.value })}
+                  />
+                </div>
+
+                {/* Ngày + giờ bắt đầu */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Ngày bắt đầu</Label>
+                    <Input
+                      type="date"
+                      className="mt-1 w-full"
+                      value={editForm.startDate || ""}
+                      onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Giờ bắt đầu</Label>
+                    <Input
+                      type="time"
+                      className="mt-1 w-full"
+                      value={editForm.startTime || ""}
+                      onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Ngày + giờ kết thúc */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Ngày kết thúc</Label>
+                    <Input
+                      type="date"
+                      className="mt-1 w-full"
+                      value={editForm.endDate || ""}
+                      onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Giờ kết thúc</Label>
+                    <Input
+                      type="time"
+                      className="mt-1 w-full"
+                      value={editForm.endTime || ""}
+                      onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Phương thức cọc */}
+                <div>
+                  <Label>Phương thức cọc</Label>
+                  <Select
+                    value={editForm.depositMethod || ""}
+                    onValueChange={(v) => setEditForm({ ...editForm, depositMethod: v })}
+                  >
+                    <SelectTrigger className="mt-1 w-full">
+                      <SelectValue placeholder="Chọn phương thức" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
+                      <SelectItem value="cccd-taisan">CCCD + tài sản</SelectItem>
+                      <SelectItem value="cccd-80">CCCD + 80%</</SelectItem>
+                    <SelectItem value="100">Cọc 100%</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Ghi chú admin */}
+              <div>
+                <Label>Ghi chú admin</Label>
+                <Textarea
+                  className="mt-1 w-full"
+                  rows={3}
+                  value={editForm.adminNotes || ""}
+                  onChange={(e) => setEditForm({ ...editForm, adminNotes: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <DialogFooter className="p-4 sm:p-5 md:p-6 flex justify-between">
+
+              {/* Nút XÓA style giống camera */}
+              <Button
+                variant="outline"
+                className="text-destructive border-destructive"
+                onClick={async () => {
+                  if (!selectedBooking) return
+
+                  await remove(ref(db, `bookings/${selectedBooking.id}`))
+                  await recalcCameraAvailability(selectedBooking.cameraId)
+
+                  toast({
+                    title: "Đã xoá đơn",
+                    description: "Đơn hàng đã bị xoá hoàn toàn."
+                  })
+
+                  setIsEditBookingOpen(false)
+                }}
+              >
+                Xoá đơn
+              </Button>
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsEditBookingOpen(false)}>
+                  Huỷ
+                </Button>
+
+                <Button
+                  onClick={async () => {
+                    if (!selectedBooking) return
+
+                    const payload = {
+                      customerName: editForm.customerName || "",
+                      customerPhone: editForm.customerPhone || "",
+                      startDate: editForm.startDate || "",
+                      endDate: editForm.endDate || "",
+                      startTime: editForm.startTime || "",
+                      endTime: editForm.endTime || "",
+                      depositMethod: editForm.depositMethod || "",
+                      adminNotes: editForm.adminNotes || null,
+                    }
+
+                    await update(ref(db, `bookings/${selectedBooking.id}`), payload)
+                    await recalcCameraAvailability(selectedBooking.cameraId)
+
+                    toast({
+                      title: "Đã lưu thay đổi",
+                      description: "Thông tin đơn hàng đã cập nhật."
+                    })
+
+                    setIsEditBookingOpen(false)
+                  }}
+                >
+                  Lưu thay đổi
+                </Button>
+              </div>
+            </DialogFooter>
+
+          </DialogContent>
+        </Dialog>
+
+        {!loading && filteredBookings.length === 0 && (
+          <div className="text-center py-8">
+            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Không tìm thấy đơn hàng</h3>
+            <p className="text-muted-foreground">
+              {searchTerm || statusFilter !== "all" ? "Không có đơn hàng phù hợp" : "Chưa có đơn hàng trong hệ thống"}
             </p>
           </div>
-        </div>
-
-        <div className="text-right sm:text-right sm:flex-shrink-0">
-          <p className="font-semibold">{booking.totalAmount.toLocaleString("vi-VN")}đ</p>
-          <p className="text-sm text-muted-foreground">{booking.totalDays} ngày</p>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 mt-2 sm:mt-0">
-        {getStatusBadge(booking.status)}
-
-        <Button variant="outline" size="sm" onClick={() => { setSelectedBooking(booking); setIsDetailsOpen(true); }}>
-          <Eye className="h-4 w-4" />
-        </Button>
-
-        {canUpdateStatus(booking) && (
-          <Button size="sm" onClick={() => handleQuickStatusUpdate(booking, STATUS_CONFIG[booking.status].nextStatus!)} className="text-xs">
-            {getNextStatusLabel(booking)}
-          </Button>
         )}
 
-        <Button variant="outline" size="sm" onClick={() => { setSelectedBooking(booking); setNewStatus(booking.status); setAdminNotes(booking.adminNotes || ""); setIsStatusUpdateOpen(true); }}>
-          <Edit className="h-4 w-4" />
-        </Button>
+        {loading && <div className="text-center py-8 text-muted-foreground">Đang tải danh sách đơn hàng...</div>}
+      </CardContent>
 
-        <Button variant="outline" size="sm" onClick={() => deleteBooking(booking.id)} className="text-destructive hover:text-destructive">
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Notes */}
-      {booking.notes && <p className="text-sm text-muted-foreground italic mt-2 sm:mt-0">{booking.notes}</p>}
-      {booking.adminNotes && <p className="text-sm text-blue-600 italic mt-2 sm:mt-0">{booking.adminNotes}</p>}
-    </div>
-  ))}
-
-  {!loading && filteredBookings.length === 0 && (
-    <div className="text-center py-8">
-      <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-      <h3 className="text-lg font-semibold mb-2">Không tìm thấy đơn hàng</h3>
-      <p className="text-muted-foreground">
-        {searchTerm || statusFilter !== "all" ? "Không có đơn hàng phù hợp" : "Chưa có đơn hàng trong hệ thống"}
-      </p>
-    </div>
-  )}
-
-  {loading && <div className="text-center py-8 text-muted-foreground">Đang tải danh sách đơn hàng...</div>}
-</CardContent>
-
-      </Card>
-    </div>
+    </Card>
+    </div >
   )
 
 }
