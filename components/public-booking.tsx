@@ -389,8 +389,8 @@ export function PublicBooking() {
   }, [])
 
   const stepsConfig = [
+      { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
     { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
-    { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
     { key: "details", label: "Thông tin khách", icon: User },
     { key: "confirm", label: "Xác nhận", icon: Check },
   ] as const
@@ -398,8 +398,6 @@ export function PublicBooking() {
   const validateStep = (key: (typeof stepsConfig)[number]["key"]) => {
     if (key === "dates" && !isDayValid())
       return "Vui lòng chọn ngày thuê và ngày trả"
-    if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
-    if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
     if (key === "details" && !isFormValid())
       return "Vui lòng điền đầy đủ thông tin"
     return ""
