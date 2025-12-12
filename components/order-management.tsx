@@ -731,11 +731,11 @@ export function OrderManagement() {
                     <SelectTrigger className="mt-1 w-full">
                       <SelectValue placeholder="Chọn phương thức" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
-                      <SelectItem value="cccd-taisan">CCCD + tài sản</SelectItem>
-                      <SelectItem value="cccd-80">CCCD + 80%</</SelectItem>
-                    <SelectItem value="100">Cọc 100%</SelectItem>
-                  </SelectContent>
+          <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
+            <SelectItem value="cccd-taisan">CCCD + tài sản</SelectItem>
+            <SelectItem value="cccd-80">CCCD + 80%</SelectItem>
+            <SelectItem value="100">Cọc 100%</SelectItem>
+          </SelectContent>
                 </Select>
               </div>
 

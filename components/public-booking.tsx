@@ -89,7 +89,6 @@ const timesOverlap = (es: string, ee: string, ns: string, ne: string) => {
 
 export function PublicBooking() {
   const [cameras, setCameras] = useState<CameraType[]>([])
-  const [availableCameras, setAvailableCameras] = useState<CameraType[]>([])
   const [selectedCamera, setSelectedCamera] = useState<CameraType | null>(null)
   const [bookingForm, setBookingForm] = useState<BookingForm>({
     cameraId: "",
@@ -109,6 +108,7 @@ export function PublicBooking() {
   const [stepError, setStepError] = useState("")
   const [phoneError, setPhoneError] = useState<string>("")
   const [isConfirmSubmitting, setIsConfirmSubmitting] = useState(false)
+    const [bookedDates, setBookedDates] = useState<Date[]>([])
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null)
   const [bookedPeriodsByCamera, setBookedPeriodsByCamera] = useState<Record<string, BookedPeriod[]>>({}) // Modified: periods instead of dates
   const [showGallery, setShowGallery] = useState(false)
@@ -389,9 +389,8 @@ export function PublicBooking() {
   }, [])
 
   const stepsConfig = [
+    { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
     { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
-    { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
-    { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
     { key: "details", label: "Thông tin khách", icon: User },
     { key: "confirm", label: "Xác nhận", icon: Check },
   ] as const
