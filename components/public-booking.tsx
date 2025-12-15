@@ -27,10 +27,8 @@ interface CameraType {
   model: string
   category: string
   dailyRate: number
-  ondayRate: number
+  sixHoursRate: number
   fullDayRate: number
-  threeDaysRate: number
-  fiveDaysRate: number
   isBooked: boolean
   available: number
   description: string
@@ -358,8 +356,8 @@ export function PublicBooking() {
       bookingForm.customerPhone.trim() !== "" &&
       bookingForm.startDate &&
       bookingForm.endDate &&
-      /^[0-9]{9,11}$/.test(bookingForm.customerPhone) &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail)
+      /^[0-9]{9,11}$/.test(bookingForm.customerPhone) 
+      // /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail)
     )
   }
 
@@ -481,7 +479,7 @@ export function PublicBooking() {
       rate = selectedCamera.fullDayRate
       label = "1 ngày trở lên"
     } else {
-      rate = selectedCamera.ondayRate || 0
+      rate = selectedCamera.sixHoursRate || 0
       label = "Trong ngày"
     }
 
@@ -1057,7 +1055,7 @@ export function PublicBooking() {
 
             {/* Deposit method */}
             <div className="space-y-2 sm:col-span-2">
-              <Label className="text-sm font-semibold">Phương thức cọc máy</Label>
+              <Label className="text-sm font-semibold">Phương thức cọc máy *</Label>
 
               <Select
                 value={bookingForm.depositMethod}

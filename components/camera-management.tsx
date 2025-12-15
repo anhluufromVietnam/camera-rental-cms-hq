@@ -41,7 +41,7 @@ interface Camera {
   model: string
   category: string
   sixHoursRate: number
-  ondayRate: number
+  fullDayRate: number
   quantity: number
   available: number
   description: string
@@ -174,9 +174,9 @@ export function CameraManagement() {
 
   const getRatePrice = (camera: Camera, type: string) => {
     switch (type) {
-      case "ondayRate": return camera.ondayRate
-      case "sixHoursRate": return camera.sixHoursRate || camera.ondayRate
-      default: return camera.ondayRate
+      case "fullDayRate": return camera.fullDayRate
+      case "sixHoursRate": return camera.sixHoursRate || camera.fullDayRate
+      default: return camera.fullDayRate
     }
   }
 
@@ -266,7 +266,7 @@ export function CameraManagement() {
               <div>
                 <Label className="text-muted-foreground">Giá thuê</Label>
                 <Select
-                  value={selectedRates[camera.id] || "ondayRate"}
+                  value={selectedRates[camera.id] || "fullDayRate"}
                   onValueChange={v => setSelectedRates(p => ({ ...p, [camera.id]: v }))}
                 >
                   <SelectTrigger className="mt-1 w-full">
@@ -274,11 +274,11 @@ export function CameraManagement() {
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
                     <SelectItem value="sixHoursRate">Trong ngày</SelectItem>
-                    <SelectItem value="ondayRate">1 ngày</SelectItem>
+                    <SelectItem value="fullDayRate">1 ngày</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="font-medium mt-1 text-primary">
-                  {getRatePrice(camera, selectedRates[camera.id] || "ondayRate").toLocaleString("vi-VN")}đ
+                  {getRatePrice(camera, selectedRates[camera.id] || "fullDayRate").toLocaleString("vi-VN")}đ
                 </p>
               </div>
 
@@ -376,7 +376,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
     brand: camera?.brand || "",
     model: camera?.model || "",
     category: camera?.category || "",
-    ondayRate: camera?.ondayRate || 0,
+    fullDayRate: camera?.fullDayRate || 0,
     sixHoursRate: camera?.sixHoursRate || 0,
     quantity: camera?.quantity || 1,
     available: camera?.available || 1,
@@ -500,7 +500,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { key: "sixHoursRate", label: "Trong ngày (6h)" },
-              { key: "ondayRate", label: "1 ngày" },
+              { key: "fullDayRate", label: "1 ngày" },
             ].map(({ key, label }) => (
               <div key={key}>
                 <Label className="text-xs">{label}</Label>

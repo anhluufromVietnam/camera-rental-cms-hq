@@ -56,6 +56,7 @@ interface Booking {
   notes?: string
   adminNotes?: string | null
   depositMethod: string
+  isOverdue?: boolean | null
 }
 
 const STATUS_CONFIG = {
@@ -132,79 +133,6 @@ export function OrderManagement() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [isEditBookingOpen, setIsEditBookingOpen] = useState(false)
   const [editForm, setEditForm] = useState<Partial<Booking>>({})
-  const calculateTotalDays = () => {
-    if (
-      !editForm.startDate ||
-      !editForm.endDate ||
-      !editForm.startTime ||
-      !editForm.endTime
-    ) {
-      return 0
-    }
-
-    const diffDate = Math.ceil(
-      (normalizeDate(editForm.endDate).getTime() -
-        normalizeDate(editForm.startDate).getTime()) /
-      (1000 * 60 * 60 * 24)
-    ) + 1
-
-    return diffDate
-  }
-
-  const calculateTotalHours = () => {
-    if (
-      !editForm.startDate ||
-      !editForm.endDate ||
-      !editForm.startTime ||
-      !editForm.endTime
-    ) {
-      return 0
-    }
-
-    const [sh, sm] = editForm.startTime.split(":").map(Number)
-    const [eh, em] = editForm.endTime.split(":").map(Number)
-
-    const startDateTime = new Date(editForm.startDate)
-    startDateTime.setHours(sh, sm, 0, 0)
-
-    const endDateTime = new Date(editForm.endDate)
-    endDateTime.setHours(eh, em, 0, 0)
-
-    if (endDateTime <= startDateTime) {
-      return 0
-    }
-
-    return (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60)
-  }
-
-  const getPricingInfo = () => {
-    const hours = calculateTotalHours()
-    if (hours === 0 || !selectedCamera) {
-      return { rate: 0, label: "", total: 0 }
-    }
-
-    let rate: number
-    let label: string
-
-    if (hours > 6 && selectedCamera.fullDayRate > 0) {
-      rate = selectedCamera.fullDayRate
-      label = "1 ngày trở lên"
-    } else {
-      rate = selectedCamera.ondayRate || 0
-      label = "Trong ngày"
-    }
-
-    const days = Math.ceil(hours / 24)
-    const total = days * rate
-
-    return { rate, label, total }
-  }
-
-  const calculateTotalAmount = () => {
-    return getPricingInfo().total
-  }
-
-
 
   // --- realtime load bookings ---
   useEffect(() => {
@@ -353,7 +281,6 @@ export function OrderManagement() {
       (b) => b.cameraId === cameraId && b.status === "confirmed"
     ).length
 
-    // lấy thông tin máy (phải có total lưu trong DB)
     const camSnap = await get(ref(db, `cameras/${cameraId}`))
     if (!camSnap.exists()) return
     const cam = camSnap.val()
@@ -369,31 +296,31 @@ export function OrderManagement() {
     await updateBookingStatus(booking.id, status as Booking["status"])
   }
 
-  // --- delete booking (RTDB) ---
-  const deleteBooking = async (bookingId: string) => {
-    try {
-      // get booking to check camera & status
-      const orig = bookings.find((b) => b.id === bookingId)
-      await remove(ref(db, `bookings/${bookingId}`))
+  // // --- delete booking (RTDB) ---
+  // const deleteBooking = async (bookingId: string) => {
+  //   try {
+  //     // get booking to check camera & status
+  //     const orig = bookings.find((b) => b.id === bookingId)
+  //     await remove(ref(db, `bookings/${bookingId}`))
 
-      // if booking was confirmed (reserved), return camera
-      if (orig?.status === "confirmed" && orig.cameraId) {
-        await updateCameraAvailability(orig.cameraId, +1)
-      }
+  //     // if booking was confirmed (reserved), return camera
+  //     if (orig?.status === "confirmed" && orig.cameraId) {
+  //       await updateCameraAvailability(orig.cameraId, +1)
+  //     }
 
-      toast({
-        title: "Đã xóa",
-        description: `Đã xóa đơn hàng #${bookingId}`,
-      })
-    } catch (err) {
-      console.error("deleteBooking error:", err)
-      toast({
-        title: "Lỗi",
-        description: "Không thể xóa đơn hàng",
-        variant: "destructive",
-      })
-    }
-  }
+  //     toast({
+  //       title: "Đã xóa",
+  //       description: `Đã xóa đơn hàng #${bookingId}`,
+  //     })
+  //   } catch (err) {
+  //     console.error("deleteBooking error:", err)
+  //     toast({
+  //       title: "Lỗi",
+  //       description: "Không thể xóa đơn hàng",
+  //       variant: "destructive",
+  //     })
+  //   }
+  // }
 
   // --- handle confirm from status update dialog ---
   const handleStatusUpdate = async () => {
@@ -441,7 +368,6 @@ export function OrderManagement() {
   }
 
 
-  // --- UI render (kept similar to your original) ---
   return (
     <div className="space-y-6 px-4 sm:px-6 lg:px-8">
       {/* Header */}
@@ -589,19 +515,6 @@ export function OrderManagement() {
                 )}
 
                 <div className="flex flex-wrap gap-2 items-center justify-end">
-
-                  {/* <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedBooking(booking)
-                      setIsDetailsOpen(true)
-                    }}
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    Xem
-                  </Button> */}
-
                   {canUpdateStatus(booking) && (
                     <Button
                       size="sm"
@@ -675,52 +588,6 @@ export function OrderManagement() {
                   />
                 </div>
 
-                {/* Ngày + giờ bắt đầu */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Ngày bắt đầu</Label>
-                    <Input
-                      type="date"
-                      className="mt-1 w-full"
-                      value={editForm.startDate || ""}
-                      onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Giờ bắt đầu</Label>
-                    <Input
-                      type="time"
-                      className="mt-1 w-full"
-                      value={editForm.startTime || ""}
-                      onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Ngày + giờ kết thúc */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Ngày kết thúc</Label>
-                    <Input
-                      type="date"
-                      className="mt-1 w-full"
-                      value={editForm.endDate || ""}
-                      onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Giờ kết thúc</Label>
-                    <Input
-                      type="time"
-                      className="mt-1 w-full"
-                      value={editForm.endTime || ""}
-                      onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
-                    />
-                  </div>
-                </div>
-
                 {/* Phương thức cọc */}
                 <div>
                   <Label>Phương thức cọc</Label>
@@ -731,104 +598,188 @@ export function OrderManagement() {
                     <SelectTrigger className="mt-1 w-full">
                       <SelectValue placeholder="Chọn phương thức" />
                     </SelectTrigger>
-          <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
-            <SelectItem value="cccd-taisan">CCCD + tài sản</SelectItem>
-            <SelectItem value="cccd-80">CCCD + 80%</SelectItem>
-            <SelectItem value="100">Cọc 100%</SelectItem>
-          </SelectContent>
-                </Select>
+                    <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
+                      <SelectItem value="cccd-taisan">CCCD + tài sản</SelectItem>
+                      <SelectItem value="cccd-80">CCCD + 80%</SelectItem>
+                      <SelectItem value="100">Cọc 100%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Ghi chú admin */}
+                <div>
+                  <Label>Ghi chú admin</Label>
+                  <Textarea
+                    className="mt-1 w-full"
+                    rows={3}
+                    value={editForm.adminNotes || ""}
+                    onChange={(e) => setEditForm({ ...editForm, adminNotes: e.target.value })}
+                  />
+                </div>
               </div>
 
-              {/* Ghi chú admin */}
-              <div>
-                <Label>Ghi chú admin</Label>
-                <Textarea
-                  className="mt-1 w-full"
-                  rows={3}
-                  value={editForm.adminNotes || ""}
-                  onChange={(e) => setEditForm({ ...editForm, adminNotes: e.target.value })}
-                />
+              {/* FOOTER */}
+              <DialogFooter className="p-4 sm:p-5 md:p-6 flex justify-between">
+
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsEditBookingOpen(false)}>
+                    Huỷ
+                  </Button>
+
+                  <Button
+                    onClick={async () => {
+                      if (!selectedBooking) return
+
+                      const payload = {
+                        customerName: editForm.customerName || "",
+                        customerPhone: editForm.customerPhone || "",
+                        startDate: editForm.startDate || "",
+                        endDate: editForm.endDate || "",
+                        startTime: editForm.startTime || "",
+                        endTime: editForm.endTime || "",
+                        depositMethod: editForm.depositMethod || "",
+                        adminNotes: editForm.adminNotes || null,
+                      }
+
+                      await update(ref(db, `bookings/${selectedBooking.id}`), payload)
+                      await recalcCameraAvailability(selectedBooking.cameraId)
+
+                      toast({
+                        title: "Đã lưu thay đổi",
+                        description: "Thông tin đơn hàng đã cập nhật."
+                      })
+
+                      setIsEditBookingOpen(false)
+                    }}
+                  >
+                    Lưu thay đổi
+                  </Button>
+                </div>
+              </DialogFooter>
+
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+            <DialogContent className="sm:max-w-md w-full rounded-lg p-0">
+
+              {/* HEADER */}
+              <DialogHeader className="p-4 sm:p-5 border-b">
+                <DialogTitle>Huỷ đơn hàng</DialogTitle>
+                <DialogDescription>
+                  Hành động này không thể hoàn tác
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* BODY */}
+              <div className="p-4 sm:p-5">
+                <p className="text-sm">
+                  Bạn có chắc chắn muốn huỷ đơn:
+                </p>
+                <p className="font-semibold text-destructive">
+                  #{deleteTargetId}
+                </p>
               </div>
-            </div>
 
-            {/* FOOTER */}
-            <DialogFooter className="p-4 sm:p-5 md:p-6 flex justify-between">
-
-              {/* Nút XÓA style giống camera */}
-              <Button
-                variant="outline"
-                className="text-destructive border-destructive"
-                onClick={async () => {
-                  if (!selectedBooking) return
-
-                  await remove(ref(db, `bookings/${selectedBooking.id}`))
-                  await recalcCameraAvailability(selectedBooking.cameraId)
-
-                  toast({
-                    title: "Đã xoá đơn",
-                    description: "Đơn hàng đã bị xoá hoàn toàn."
-                  })
-
-                  setIsEditBookingOpen(false)
-                }}
-              >
-                Xoá đơn
-              </Button>
-
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setIsEditBookingOpen(false)}>
+              {/* FOOTER */}
+              <DialogFooter className="p-4 sm:p-5 flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteConfirmOpen(false)}
+                >
                   Huỷ
                 </Button>
 
                 <Button
+                  variant="destructive"
                   onClick={async () => {
-                    if (!selectedBooking) return
+                    if (!deleteTargetId) return
 
-                    const payload = {
-                      customerName: editForm.customerName || "",
-                      customerPhone: editForm.customerPhone || "",
-                      startDate: editForm.startDate || "",
-                      endDate: editForm.endDate || "",
-                      startTime: editForm.startTime || "",
-                      endTime: editForm.endTime || "",
-                      depositMethod: editForm.depositMethod || "",
-                      adminNotes: editForm.adminNotes || null,
+                    try {
+                      const booking = bookings.find(b => b.id === deleteTargetId)
+                      if (!booking) return
+
+                      // prevent cancelling completed bookings
+                      if (["completed"].includes(booking.status)) {
+                        toast({
+                          title: "Không thể huỷ",
+                          description: "Đơn đã hoàn thành không thể huỷ",
+                          variant: "destructive",
+                        })
+                        return
+                      }
+
+                      if (["active", "overtime"].includes(booking.status)) {
+                        toast({
+                          title: "Không thể huỷ",
+                          description: "Đơn đang thuê hoặc quá hạn không thể huỷ",
+                          variant: "destructive",
+                        })
+                        return
+                      }
+
+                      const bookingRef = ref(db, `bookings/${deleteTargetId}`)
+
+                      // log status change
+                      await push(ref(db, `bookings/${deleteTargetId}/statusChangeLogs`), {
+                        oldStatus: booking.status,
+                        newStatus: "cancelled",
+                        changedBy: "admin",
+                        changedAt: new Date().toISOString(),
+                        notes: "Huỷ đơn bởi admin",
+                      })
+
+                      await update(bookingRef, {
+                        status: "cancelled",
+                      })
+
+                      // recalc camera availability
+                      if (
+                        booking.cameraId &&
+                        (booking.status === "confirmed" || booking.status === "active")
+                      ) {
+                        await recalcCameraAvailability(booking.cameraId)
+                      }
+
+                      toast({
+                        title: "Đã huỷ đơn",
+                        description: `Đơn #${deleteTargetId} đã được huỷ`,
+                      })
+                    } catch (err) {
+                      console.error("Cancel booking error:", err)
+                      toast({
+                        title: "Lỗi",
+                        description: "Không thể huỷ đơn hàng",
+                        variant: "destructive",
+                      })
+                    } finally {
+                      setDeleteTargetId(null)
+                      setIsDeleteConfirmOpen(false)
                     }
-
-                    await update(ref(db, `bookings/${selectedBooking.id}`), payload)
-                    await recalcCameraAvailability(selectedBooking.cameraId)
-
-                    toast({
-                      title: "Đã lưu thay đổi",
-                      description: "Thông tin đơn hàng đã cập nhật."
-                    })
-
-                    setIsEditBookingOpen(false)
                   }}
                 >
-                  Lưu thay đổi
+                  Huỷ đơn
                 </Button>
-              </div>
-            </DialogFooter>
 
-          </DialogContent>
-        </Dialog>
+              </DialogFooter>
 
-        {!loading && filteredBookings.length === 0 && (
-          <div className="text-center py-8">
-            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Không tìm thấy đơn hàng</h3>
-            <p className="text-muted-foreground">
-              {searchTerm || statusFilter !== "all" ? "Không có đơn hàng phù hợp" : "Chưa có đơn hàng trong hệ thống"}
-            </p>
-          </div>
-        )}
+            </DialogContent>
+          </Dialog>
 
-        {loading && <div className="text-center py-8 text-muted-foreground">Đang tải danh sách đơn hàng...</div>}
-      </CardContent>
+          {!loading && filteredBookings.length === 0 && (
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Không tìm thấy đơn hàng</h3>
+              <p className="text-muted-foreground">
+                {searchTerm || statusFilter !== "all" ? "Không có đơn hàng phù hợp" : "Chưa có đơn hàng trong hệ thống"}
+              </p>
+            </div>
+          )}
 
-    </Card>
+          {loading && <div className="text-center py-8 text-muted-foreground">Đang tải danh sách đơn hàng...</div>}
+        </CardContent>
+
+      </Card>
     </div >
   )
-
 }
