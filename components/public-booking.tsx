@@ -89,7 +89,6 @@ const timesOverlap = (es: string, ee: string, ns: string, ne: string) => {
 
 export function PublicBooking() {
   const [cameras, setCameras] = useState<CameraType[]>([])
-  const [availableCameras, setAvailableCameras] = useState<CameraType[]>([])
   const [selectedCamera, setSelectedCamera] = useState<CameraType | null>(null)
   const [bookingForm, setBookingForm] = useState<BookingForm>({
     cameraId: "",
@@ -174,6 +173,12 @@ export function PublicBooking() {
 
     return () => unsubscribe()
   }, [])
+
+  const isFullTimeSelected = () =>
+  bookingForm.startDate &&
+  bookingForm.endDate &&
+  bookingForm.startTime &&
+  bookingForm.endTime
 
   // Filter available cameras based on selected dates and times (modified)
   useEffect(() => {
@@ -358,11 +363,10 @@ export function PublicBooking() {
       bookingForm.customerPhone.trim() !== "" &&
       bookingForm.startDate &&
       bookingForm.endDate &&
-      /^[0-9]{9,11}$/.test(bookingForm.customerPhone) &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail)
+      /^[0-9]{9,11}$/.test(bookingForm.customerPhone)
+      // /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail)
     )
   }
-
 
   const isDayValid = () => {
     return (
@@ -372,6 +376,22 @@ export function PublicBooking() {
       bookingForm.endTime
     )
   }
+
+  // Tính danh sách các ngày đã bị book (dạng Date[])
+  const bookedDates: Date[] = selectedCamera
+  ? (bookedPeriodsByCamera[selectedCamera.id] || []).flatMap(period => {
+      const dates: Date[] = [];
+      const current = new Date(period.startDate);
+
+      while (current <= period.endDate) {
+        dates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+
+      return dates;
+    })
+  : [];
+
 
   useEffect(() => {
     const fetchPaymentInfo = async () => {
@@ -391,7 +411,6 @@ export function PublicBooking() {
   const stepsConfig = [
     { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
     { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
-    { key: "select", label: "Chọn máy ảnh", icon: CameraIcon },
     { key: "details", label: "Thông tin khách", icon: User },
     { key: "confirm", label: "Xác nhận", icon: Check },
   ] as const
@@ -399,7 +418,6 @@ export function PublicBooking() {
   const validateStep = (key: (typeof stepsConfig)[number]["key"]) => {
     if (key === "dates" && !isDayValid())
       return "Vui lòng chọn ngày thuê và ngày trả"
-    if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
     if (key === "select" && !selectedCamera) return "Vui lòng chọn máy ảnh"
     if (key === "details" && !isFormValid())
       return "Vui lòng điền đầy đủ thông tin"
