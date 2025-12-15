@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { PublicBooking } from "@/components/public-booking"
-import { Camera, Heart, Shield, Clock, Star, Sparkles, Phone } from "lucide-react"
+import { Camera, Heart, Shield, Clock, Star, Sparkles, Phone, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FacebookGallery } from "@/components/facebook-gallery"
 import { useGlobalErrorLogger } from "@/hooks/useGlobalErrorLogger";
@@ -10,12 +10,15 @@ export default function BookingPage() {
   useGlobalErrorLogger();
   const [showHeader, setShowHeader] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false) // State mới cho mobile menu
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY
+      // Ẩn header khi scroll xuống, hiện khi scroll lên
       if (currentScrollY > lastScrollY && currentScrollY > 50) {
         setShowHeader(false)
+        setIsMobileMenuOpen(false) // Tự động đóng menu khi scroll
       } else {
         setShowHeader(true)
       }
@@ -26,75 +29,115 @@ export default function BookingPage() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [lastScrollY])
 
+  // Component con hiển thị Social Icons để tái sử dụng
+  const SocialIcons = () => (
+    <div className="flex items-center gap-4">
+      <a
+        href="https://www.facebook.com/minhthu.nguyentran.37266"
+        target="_blank"
+        className="hover:scale-110 transition-transform text-pink-500"
+      >
+        <img
+          src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/facebook.svg"
+          alt="Facebook"
+          className="w-8 h-8 sm:w-10 sm:h-10 opacity-90 hover:opacity-100"
+        />
+      </a>
+      <a
+        href="https://www.instagram.com/chupchoet.digicam"
+        target="_blank"
+        className="hover:scale-110 transition-transform"
+      >
+        <img
+          src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/instagram.svg"
+          alt="Instagram"
+          className="w-8 h-8 sm:w-10 sm:h-10 opacity-90 hover:opacity-100"
+        />
+      </a>
+      <a
+        href="https://www.tiktok.com/@chupchoet.digicam"
+        target="_blank"
+        className="hover:scale-110 transition-transform"
+      >
+        <img
+          src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg"
+          alt="TikTok"
+          className="w-8 h-8 sm:w-10 sm:h-10 opacity-90 hover:opacity-100"
+        />
+      </a>
+    </div>
+  )
+
   return (
     <div className="min-h-screen">
       <header
         className={`glass-strong fixed top-0 left-0 w-full z-50 border-b border-white/20 transition-transform duration-300 ${showHeader ? "translate-y-0" : "-translate-y-full"
           }`}
       >
-        <div className="container mx-auto px-4 sm:px-6 md:px-8 py-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 py-3 sm:py-4">
+          {/* Main Header Row: Luôn hiển thị Logo bên trái, Desktop Menu hoặc Mobile Toggle bên phải */}
+          <div className="flex items-center justify-between">
+
+            {/* Logo Section */}
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-2xl bg-gradient-to-br from-pink-400/30 to-purple-400/30 backdrop-blur-sm">
-                <Camera className="h-8 w-8 text-pink-600" />
+                <Camera className="h-6 w-6 sm:h-8 sm:w-8 text-pink-600" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+                <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent leading-tight">
                   chupchoet.digicam
                 </h1>
-                <p className="text-xs sm:text-sm text-foreground/60">Camera Rental</p>
+                <p className="text-[10px] sm:text-sm text-foreground/60">Camera Rental</p>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-              <a className="flex items-center gap-2 hover:text-pink-400 transition-colors font-medium text-sm">
-                <Phone size={24} className="text-pink-400" />
-                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-                  Hotline: 0369399740
+            {/* Desktop Navigation (Hidden on Mobile) */}
+            <div className="hidden md:flex items-center gap-8">
+              <a className="flex items-center gap-2 hover:text-pink-400 transition-colors font-medium">
+                <Phone size={20} className="text-pink-400" />
+                <span className="text-lg font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+                  0369399740
                 </span>
               </a>
+              <SocialIcons />
+            </div>
 
-              <div className="flex flex-wrap gap-4">
-                <a
-                  href="https://www.facebook.com/minhthu.nguyentran.37266"
-                  target="_blank"
-                  className="hover:scale-110 transition-transform text-pink-500"
-                >
-                  <img
-                    src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/facebook.svg"
-                    alt="Facebook"
-                    className="w-10 h-10 opacity-90 hover:opacity-100"
-                  />
-                </a>
-                <a
-                  href="https://www.instagram.com/chupchoet.digicam"
-                  target="_blank"
-                  className="hover:scale-110 transition-transform"
-                >
-                  <img
-                    src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/instagram.svg"
-                    alt="Instagram"
-                    className="w-10 h-10 opacity-90 hover:opacity-100"
-                  />
-                </a>
-                <a
-                  href="https://www.tiktok.com/@chupchoet.digicam"
-                  target="_blank"
-                  className="hover:scale-110 transition-transform"
-                >
-                  <img
-                    src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg"
-                    alt="TikTok"
-                    className="w-10 h-10 opacity-90 hover:opacity-100"
-                  />
-                </a>
-              </div>
+            {/* Mobile Menu Button (Visible on Mobile only) */}
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="text-foreground hover:bg-pink-100/20"
+              >
+                {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </Button>
             </div>
           </div>
+
+          {/* Mobile Menu Dropdown (Hiển thị khi state open) */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden pt-4 pb-2 border-t border-white/10 mt-4 animate-in slide-in-from-top-2 fade-in-20">
+              <div className="flex flex-col items-center gap-4 space-y-2">
+                <a className="flex items-center gap-2 p-2 rounded-lg bg-white/40 w-full justify-center">
+                  <Phone size={20} className="text-pink-500" />
+                  <span className="text-lg font-bold text-foreground">
+                    Hotline: 0369399740
+                  </span>
+                </a>
+
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-sm text-foreground/60">Theo dõi chúng tôi tại:</span>
+                  <SocialIcons />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <section className="relative py-16 sm:py-20 overflow-hidden">
+      {/* --- PHẦN CÒN LẠI CỦA TRANG GIỮ NGUYÊN --- */}
+      <section className="relative py-16 sm:py-20 overflow-hidden pt-28 sm:pt-32">
         <div className="container mx-auto px-4 sm:px-6 md:px-8">
           <div className="max-w-4xl mx-auto text-center space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-light border border-white/30 mb-4">
