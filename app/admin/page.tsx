@@ -113,7 +113,7 @@ export default function AdminDashboard() {
                 <span className="hidden sm:inline">Máy ảnh</span>
               </TabsTrigger>
               <TabsTrigger
-                value="bookings"
+                value="bookbook"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
               >
                 <Package className="h-4 w-4" />
@@ -146,7 +146,7 @@ export default function AdminDashboard() {
               <CameraManagement />
             </TabsContent>
 
-            <TabsContent value="bookings">
+            <TabsContent value="bookbook">
               <BookingDashboard />
             </TabsContent>
 
