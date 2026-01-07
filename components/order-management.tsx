@@ -182,7 +182,10 @@ export function OrderManagement() {
 
   // --- memoized filteredBookings (no duplicated state) ---
   const filteredBookings = useMemo(() => {
-    let filtered = [...bookings]
+      let filtered = statusFilter === "all"
+        ? bookings.filter(b => b.status !== "cancelled")
+        : bookings
+
 
     if (searchTerm) {
       const q = searchTerm.toLowerCase()
@@ -699,39 +702,16 @@ export function OrderManagement() {
                       const booking = bookings.find(b => b.id === deleteTargetId)
                       if (!booking) return
 
-                      // prevent cancelling completed bookings
-                      if (["completed"].includes(booking.status)) {
-                        toast({
-                          title: "Không thể huỷ",
-                          description: "Đơn đã hoàn thành không thể huỷ",
-                          variant: "destructive",
-                        })
-                        return
-                      }
+                
 
-                      if (["active", "overtime"].includes(booking.status)) {
-                        toast({
-                          title: "Không thể huỷ",
-                          description: "Đơn đang thuê hoặc quá hạn không thể huỷ",
-                          variant: "destructive",
-                        })
-                        return
-                      }
+                      
 
                       const bookingRef = ref(db, `bookings/${deleteTargetId}`)
 
-                      // log status change
-                      await push(ref(db, `bookings/${deleteTargetId}/statusChangeLogs`), {
-                        oldStatus: booking.status,
-                        newStatus: "cancelled",
-                        changedBy: "admin",
-                        changedAt: new Date().toISOString(),
-                        notes: "Huỷ đơn bởi admin",
-                      })
+                      
 
-                      await update(bookingRef, {
-                        status: "cancelled",
-                      })
+                    await remove(bookingRef)
+
 
                       // recalc camera availability
                       if (
